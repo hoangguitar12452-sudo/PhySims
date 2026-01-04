@@ -4,7 +4,7 @@ export const simulations = [
     title: "Biến thiên nội năng",
     grade: "Lớp 12",
     description: "Khám phá độ biến thiên nội năng",
-    image: "PhySims/assets/bien-thien-noi-nang.webp",
+    image: "./assets/bien-thien-noi-nang.webp",
     href: "./simulations/Vat-li-12/Chuong-1-Vat-li-nhiet/bien-thien-noi-nang/bien-thien-noi-nang.html",
   },
   {
