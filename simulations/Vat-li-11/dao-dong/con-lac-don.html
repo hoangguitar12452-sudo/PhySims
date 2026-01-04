@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Mô Phỏng Con Lắc Đơn Vật Lý</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        background-color: #f3f4f6;
+        /* Chỉ chặn touch mặc định trên body để tránh kéo trang, 
+               nhưng cho phép scroll ở các vùng cụ thể */
+        overscroll-behavior: none;
+      }
+
+      .technical-grid {
+        background-image: linear-gradient(
+            to right,
+            rgba(0, 0, 0, 0.05) 1px,
+            transparent 1px
+          ),
+          linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+        background-size: 40px 40px;
+        background-color: #ffffff;
+      }
+
+      /* Tăng kích thước lưới trên màn hình lớn cho thoáng mắt */
+      @media (min-width: 1024px) {
+        .technical-grid {
+          background-size: 60px 60px;
+        }
+      }
+
+      .canvas-container {
+        position: relative;
+        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.05);
+        /* Mobile: bo góc ít hơn để tận dụng diện tích */
+        border-radius: 0.5rem;
+        overflow: hidden;
+        cursor: grab;
+        /* Quan trọng: Chặn hành vi cuộn trang khi chạm vào Canvas */
+        touch-action: none;
+        transform: translateZ(0);
+      }
+
+      @media (min-width: 1024px) {
+        .canvas-container {
+          border-radius: 1.5rem; /* Bo góc tròn hơn trên desktop */
+          box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.04); /* Bóng đổ sâu hơn */
+        }
+      }
+
+      .canvas-container:active {
+        cursor: grabbing;
+      }
+
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      }
+
+      /* Control Panel Styles */
+      .control-panel {
+        background: rgba(255, 255, 255, 0.98);
+        /* Cho phép cuộn dọc mượt mà trên mobile */
+        overflow-y: auto;
+        touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Tăng kích thước thanh trượt cho dễ chạm trên mobile */
+      input[type="range"] {
+        accent-color: #2563eb;
+        height: 24px; /* Vùng chạm lớn hơn */
+        margin-top: -8px;
+        margin-bottom: -8px;
+        cursor: pointer;
+      }
+
+      /* Custom scrollbar gọn gàng */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+    </style>
+  </head>
+  <!-- Layout: Flex Column trên Mobile, Flex Row trên Desktop (lg) -->
+  <body
+    class="h-[100dvh] w-full flex flex-col lg:flex-row text-gray-800 overflow-hidden"
+  >
+    <!-- KHU VỰC 1: CANVAS (Mobile: 55% chiều cao, Desktop: Flex-1) -->
+    <div
+      id="mainArea"
+      class="relative w-full h-[55%] lg:h-full lg:flex-1 p-2 lg:p-6 bg-gray-100 flex flex-col justify-center"
+    >
+      <div
+        class="canvas-container w-full h-full relative technical-grid border border-gray-200"
+        id="canvasWrapper"
+      >
+        <canvas id="simCanvas"></canvas>
+
+        <!-- Stats Box: To rõ hơn trên Desktop -->
+        <!-- lg:text-base (chữ to hơn), lg:p-6 (padding rộng hơn), lg:min-w-[260px] -->
+        <div
+          class="absolute top-2 left-2 lg:top-8 lg:left-8 glass-panel p-2 lg:p-6 rounded-lg lg:rounded-2xl text-[10px] lg:text-base min-w-[120px] lg:min-w-[280px] pointer-events-none select-none transition-all duration-300"
+        >
+          <div
+            class="uppercase tracking-wider font-bold text-gray-500 mb-1 lg:mb-3 border-b border-gray-200 pb-1 lg:pb-2"
+          >
+            Thông số thời gian thực
+          </div>
+          <div class="grid grid-cols-2 gap-x-2 gap-y-1 lg:gap-y-3">
+            <span class="text-gray-600">Góc (θ):</span>
+            <span
+              id="valAngle"
+              class="font-mono font-bold text-blue-600 text-right text-base lg:text-xl"
+              >0.0°</span
+            >
+
+            <span class="text-gray-600">Chu kỳ (T):</span>
+            <span
+              id="valPeriod"
+              class="font-mono font-bold text-purple-600 text-right text-base lg:text-xl"
+              >0.00s</span
+            >
+
+            <span class="text-gray-600">Vận tốc (v):</span>
+            <span
+              id="valVelocity"
+              class="font-mono font-bold text-emerald-600 text-right text-base lg:text-xl"
+              >0.00</span
+            >
+          </div>
+        </div>
+
+        <!-- Legend: To rõ hơn trên Desktop -->
+        <div
+          class="absolute top-2 right-2 lg:top-8 lg:right-8 glass-panel px-2 py-1 lg:px-5 lg:py-4 rounded-md lg:rounded-xl text-[10px] lg:text-sm font-medium pointer-events-none select-none flex flex-col gap-1 lg:gap-3 shadow-sm"
+        >
+          <div class="flex items-center">
+            <div
+              class="w-1.5 h-1.5 lg:w-3 lg:h-3 bg-emerald-500 mr-1.5 lg:mr-3 rounded-sm"
+            ></div>
+            Vectơ Vận tốc (v)
+          </div>
+          <div class="flex items-center">
+            <div
+              class="w-1.5 h-1.5 lg:w-3 lg:h-3 bg-rose-500 mr-1.5 lg:mr-3 rounded-sm"
+            ></div>
+            Vectơ Gia tốc/Lực (a)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KHU VỰC 2: CONTROL PANEL (Mobile: 45% chiều cao, Desktop: Cố định 24rem/384px) -->
+    <div
+      id="controlPanel"
+      class="control-panel w-full h-[45%] lg:h-full lg:w-96 flex-shrink-0 border-t lg:border-t-0 lg:border-l border-gray-200 shadow-xl z-10 flex flex-col"
+    >
+      <!-- Header (Sticky) -->
+      <div
+        class="sticky top-0 bg-white/95 backdrop-blur z-20 px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-100 flex items-center justify-between"
+      >
+        <h1
+          class="text-sm lg:text-xl font-bold text-gray-800 flex items-center"
+        >
+          <span
+            class="w-6 h-6 lg:w-9 lg:h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white mr-2 lg:mr-3 shadow-md"
+          >
+            <svg
+              class="w-4 h-4 lg:w-5 lg:h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              ></path>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              ></path>
+            </svg>
+          </span>
+          Cài đặt & Thông số
+        </h1>
+      </div>
+
+      <!-- Scrollable Content -->
+      <div class="p-4 lg:p-8 space-y-5 lg:space-y-8 flex-1">
+        <!-- Length -->
+        <div class="bg-gray-50 p-3 lg:p-4 rounded-xl border border-gray-200">
+          <div class="flex justify-between mb-2 items-end">
+            <label
+              class="text-xs lg:text-sm font-bold text-gray-500 uppercase tracking-wide"
+              >Chiều dài dây (l)</label
+            >
+            <span
+              id="dispLength"
+              class="text-sm lg:text-base font-bold text-blue-700 bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100"
+              >1.00 m</span
+            >
+          </div>
+          <input
+            type="range"
+            id="inputLength"
+            min="0.1"
+            max="2.0"
+            step="0.01"
+            value="1.0"
+            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+        </div>
+
+        <!-- Mass -->
+        <div class="bg-gray-50 p-3 lg:p-4 rounded-xl border border-gray-200">
+          <div class="flex justify-between mb-2 items-end">
+            <label
+              class="text-xs lg:text-sm font-bold text-gray-500 uppercase tracking-wide"
+              >Khối lượng (m)</label
+            >
+            <span
+              id="dispMass"
+              class="text-sm lg:text-base font-bold text-blue-700 bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100"
+              >1.00 kg</span
+            >
+          </div>
+          <input
+            type="range"
+            id="inputMass"
+            min="0.1"
+            max="5.0"
+            step="0.1"
+            value="1.0"
+            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+        </div>
+
+        <!-- Gravity -->
+        <div class="bg-gray-50 p-3 lg:p-4 rounded-xl border border-gray-200">
+          <div class="flex justify-between mb-2 items-end">
+            <label
+              class="text-xs lg:text-sm font-bold text-gray-500 uppercase tracking-wide"
+              >Gia tốc trọng trường (g)</label
+            >
+            <span
+              id="dispGravity"
+              class="text-sm lg:text-base font-bold text-blue-700 bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100"
+              >9.81 m/s²</span
+            >
+          </div>
+          <input
+            type="range"
+            id="inputGravity"
+            min="1.6"
+            max="20.0"
+            step="0.1"
+            value="9.8"
+            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+          <div
+            class="flex justify-between text-[10px] lg:text-xs text-gray-400 mt-2 px-1 font-medium"
+          >
+            <span>Mặt Trăng (1.6)</span>
+            <span>Trái Đất (9.8)</span>
+            <span>Sao Mộc (24.8)</span>
+          </div>
+        </div>
+
+        <!-- Friction -->
+        <div class="bg-gray-50 p-3 lg:p-4 rounded-xl border border-gray-200">
+          <div class="flex justify-between mb-2 items-end">
+            <label
+              class="text-xs lg:text-sm font-bold text-gray-500 uppercase tracking-wide"
+              >Ma sát môi trường</label
+            >
+            <span
+              id="dispFriction"
+              class="text-sm lg:text-base font-bold text-blue-700 bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100"
+              >0.005</span
+            >
+          </div>
+          <input
+            type="range"
+            id="inputFriction"
+            min="0.0"
+            max="0.05"
+            step="0.001"
+            value="0.005"
+            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+        </div>
+
+        <div class="h-px bg-gray-200 my-2"></div>
+
+        <!-- Toggles -->
+        <div class="grid grid-cols-1 gap-3 lg:gap-4">
+          <label
+            class="flex items-center space-x-3 p-2 lg:p-3 rounded-lg hover:bg-gray-50 active:bg-gray-100 cursor-pointer transition-colors border border-transparent hover:border-gray-100"
+          >
+            <div class="relative flex items-center">
+              <input
+                type="checkbox"
+                id="showVectors"
+                class="peer h-6 w-6 cursor-pointer appearance-none rounded border-2 border-gray-300 bg-white checked:bg-blue-600 checked:border-blue-600 transition-all"
+                checked
+              />
+              <svg
+                class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-0 peer-checked:opacity-100 text-white"
+                viewBox="0 0 14 10"
+                fill="none"
+              >
+                <path
+                  d="M1 5L4.5 8.5L13 1"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <span class="text-sm lg:text-base font-medium text-gray-700"
+              >Hiển thị Vectơ lực</span
+            >
+          </label>
+
+          <label
+            class="flex items-center space-x-3 p-2 lg:p-3 rounded-lg hover:bg-gray-50 active:bg-gray-100 cursor-pointer transition-colors border border-transparent hover:border-gray-100"
+          >
+            <div class="relative flex items-center">
+              <input
+                type="checkbox"
+                id="showGraph"
+                class="peer h-6 w-6 cursor-pointer appearance-none rounded border-2 border-gray-300 bg-white checked:bg-blue-600 checked:border-blue-600 transition-all"
+                checked
+              />
+              <svg
+                class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-0 peer-checked:opacity-100 text-white"
+                viewBox="0 0 14 10"
+                fill="none"
+              >
+                <path
+                  d="M1 5L4.5 8.5L13 1"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <span class="text-sm lg:text-base font-medium text-gray-700"
+              >Bật Dao động ký (Oscilloscope)</span
+            >
+          </label>
+
+          <label
+            class="flex items-center space-x-3 p-2 lg:p-3 rounded-lg hover:bg-gray-50 active:bg-gray-100 cursor-pointer transition-colors border border-transparent hover:border-gray-100"
+          >
+            <div class="relative flex items-center">
+              <input
+                type="checkbox"
+                id="slowMotion"
+                class="peer h-6 w-6 cursor-pointer appearance-none rounded border-2 border-gray-300 bg-white checked:bg-blue-600 checked:border-blue-600 transition-all"
+              />
+              <svg
+                class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-0 peer-checked:opacity-100 text-white"
+                viewBox="0 0 14 10"
+                fill="none"
+              >
+                <path
+                  d="M1 5L4.5 8.5L13 1"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <span class="text-sm lg:text-base font-medium text-gray-700"
+              >Chuyển động chậm (Slow Mo)</span
+            >
+          </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="grid grid-cols-2 gap-4 pt-4 pb-8 lg:pb-0">
+          <button
+            id="btnPause"
+            class="flex justify-center items-center bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-white text-sm lg:text-base font-bold py-3.5 px-4 rounded-xl shadow-md transform active:scale-95 transition-all"
+          >
+            <span>Tạm dừng</span>
+          </button>
+          <button
+            id="btnReset"
+            class="flex justify-center items-center bg-white border-2 border-gray-200 hover:border-gray-300 active:bg-gray-50 text-gray-600 text-sm lg:text-base font-bold py-3.5 px-4 rounded-xl shadow-md transform active:scale-95 transition-all"
+          >
+            <span>Đặt lại</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("simCanvas");
+      const ctx = canvas.getContext("2d");
+      const container = document.getElementById("canvasWrapper");
+
+      const resizeObserver = new ResizeObserver((entries) => {
+        window.requestAnimationFrame(() => {
+          if (!Array.isArray(entries) || !entries.length) return;
+          resizeCanvas();
+        });
+      });
+      resizeObserver.observe(container);
+
+      let params = {
+        length: 1.0,
+        mass: 1.0,
+        gravity: 9.8,
+        damping: 0.995,
+        dt: 0.016,
+      };
+      let state = {
+        theta: Math.PI / 4,
+        omega: 0,
+        alpha: 0,
+        time: 0,
+        origin: { x: 0, y: 0 },
+        pixelsPerMeter: 200,
+        isDragging: false,
+        isPaused: false,
+        history: [],
+      };
+
+      const ui = {
+        length: document.getElementById("inputLength"),
+        mass: document.getElementById("inputMass"),
+        gravity: document.getElementById("inputGravity"),
+        friction: document.getElementById("inputFriction"),
+        dispLength: document.getElementById("dispLength"),
+        dispMass: document.getElementById("dispMass"),
+        dispGravity: document.getElementById("dispGravity"),
+        dispFriction: document.getElementById("dispFriction"),
+        showVectors: document.getElementById("showVectors"),
+        showGraph: document.getElementById("showGraph"),
+        slowMotion: document.getElementById("slowMotion"),
+        btnPause: document.getElementById("btnPause"),
+        btnReset: document.getElementById("btnReset"),
+        valAngle: document.getElementById("valAngle"),
+        valPeriod: document.getElementById("valPeriod"),
+        valVelocity: document.getElementById("valVelocity"),
+      };
+
+      function init() {
+        ui.length.addEventListener("input", (e) => {
+          params.length = parseFloat(e.target.value);
+          ui.dispLength.textContent = params.length.toFixed(2) + " m";
+        });
+        ui.mass.addEventListener("input", (e) => {
+          params.mass = parseFloat(e.target.value);
+          ui.dispMass.textContent = params.mass.toFixed(2) + " kg";
+        });
+        ui.gravity.addEventListener("input", (e) => {
+          params.gravity = parseFloat(e.target.value);
+          ui.dispGravity.textContent = params.gravity.toFixed(2) + " m/s²";
+        });
+        ui.friction.addEventListener("input", (e) => {
+          const friction = parseFloat(e.target.value);
+          params.damping = 1.0 - friction;
+          ui.dispFriction.textContent = friction.toFixed(3);
+        });
+
+        ui.btnPause.addEventListener("click", () => {
+          state.isPaused = !state.isPaused;
+          ui.btnPause.textContent = state.isPaused ? "Tiếp tục" : "Tạm dừng";
+          ui.btnPause.className = state.isPaused
+            ? "flex justify-center items-center bg-emerald-500 active:bg-emerald-600 text-white text-sm lg:text-base font-bold py-3.5 px-4 rounded-xl shadow-md transform active:scale-95 transition-all"
+            : "flex justify-center items-center bg-amber-400 active:bg-amber-600 text-white text-sm lg:text-base font-bold py-3.5 px-4 rounded-xl shadow-md transform active:scale-95 transition-all";
+        });
+
+        ui.btnReset.addEventListener("click", resetSim);
+
+        canvas.addEventListener("mousedown", startDrag);
+        canvas.addEventListener("mousemove", drag);
+        canvas.addEventListener("mouseup", endDrag);
+        canvas.addEventListener("mouseleave", endDrag);
+
+        canvas.addEventListener(
+          "touchstart",
+          (e) => {
+            e.preventDefault();
+            startDrag(e.touches[0]);
+          },
+          { passive: false }
+        );
+        canvas.addEventListener(
+          "touchmove",
+          (e) => {
+            e.preventDefault();
+            drag(e.touches[0]);
+          },
+          { passive: false }
+        );
+        canvas.addEventListener("touchend", endDrag);
+
+        requestAnimationFrame(loop);
+      }
+
+      function resetSim() {
+        state.theta = Math.PI / 4;
+        state.omega = 0;
+        state.alpha = 0;
+        state.time = 0;
+        state.history = [];
+        state.isPaused = false;
+        ui.btnPause.textContent = "Tạm dừng";
+        ui.btnPause.className =
+          "flex justify-center items-center bg-amber-400 active:bg-amber-600 text-white text-sm lg:text-base font-bold py-3.5 px-4 rounded-xl shadow-md transform active:scale-95 transition-all";
+      }
+
+      function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = container.getBoundingClientRect();
+
+        if (
+          Math.abs(canvas.width - rect.width * dpr) > 1 ||
+          Math.abs(canvas.height - rect.height * dpr) > 1
+        ) {
+          canvas.width = rect.width * dpr;
+          canvas.height = rect.height * dpr;
+          ctx.scale(dpr, dpr);
+          canvas.style.width = "100%";
+          canvas.style.height = "100%";
+        }
+
+        const logicW = rect.width;
+        const logicH = rect.height;
+
+        state.origin.x = logicW / 2;
+        state.origin.y = logicH < logicW ? logicH * 0.15 : logicH * 0.12;
+
+        const availableHeight = logicH * 0.85;
+        const availableWidth = logicW * 0.9;
+        state.pixelsPerMeter = Math.min(
+          availableWidth / 2.5,
+          availableHeight / 2.2
+        );
+      }
+
+      function updatePhysics() {
+        if (state.isPaused || state.isDragging) return;
+        let dt = ui.slowMotion.checked ? params.dt * 0.2 : params.dt;
+        state.alpha =
+          ((-1 * params.gravity) / params.length) * Math.sin(state.theta);
+        state.omega += state.alpha * dt;
+        state.omega *= params.damping;
+        state.theta += state.omega * dt;
+        state.time += dt;
+        if (state.history.length > 200) state.history.shift();
+        state.history.push({ t: state.time, theta: state.theta });
+      }
+
+      function updateStats() {
+        let degree = ((state.theta * 180) / Math.PI).toFixed(1);
+        ui.valAngle.textContent = `${degree}°`;
+        let v = (state.omega * params.length).toFixed(2);
+        ui.valVelocity.textContent = `${v}`;
+        let period = (
+          2 *
+          Math.PI *
+          Math.sqrt(params.length / params.gravity)
+        ).toFixed(2);
+        ui.valPeriod.textContent = `${period}s`;
+      }
+
+      function getBobPos() {
+        return {
+          x:
+            state.origin.x +
+            Math.sin(state.theta) * params.length * state.pixelsPerMeter,
+          y:
+            state.origin.y +
+            Math.cos(state.theta) * params.length * state.pixelsPerMeter,
+        };
+      }
+
+      function startDrag(e) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = (e.clientX || e.pageX) - rect.left;
+        const mouseY = (e.clientY || e.pageY) - rect.top;
+        const bob = getBobPos();
+        const dist = Math.sqrt((mouseX - bob.x) ** 2 + (mouseY - bob.y) ** 2);
+        if (dist < 60) {
+          state.isDragging = true;
+          state.isPaused = true;
+          canvas.style.cursor = "grabbing";
+        }
+      }
+
+      function drag(e) {
+        if (!state.isDragging) {
+          const rect = canvas.getBoundingClientRect();
+          const mouseX = (e.clientX || e.pageX) - rect.left;
+          const mouseY = (e.clientY || e.pageY) - rect.top;
+          const bob = getBobPos();
+          const dist = Math.sqrt((mouseX - bob.x) ** 2 + (mouseY - bob.y) ** 2);
+          canvas.style.cursor = dist < 60 ? "grab" : "default";
+          return;
+        }
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = (e.clientX || e.pageX) - rect.left;
+        const mouseY = (e.clientY || e.pageY) - rect.top;
+        const dx = mouseX - state.origin.x;
+        const dy = mouseY - state.origin.y;
+        let angle = Math.atan2(dx, dy);
+        if (angle > Math.PI / 1.1) angle = Math.PI / 1.1;
+        if (angle < -Math.PI / 1.1) angle = -Math.PI / 1.1;
+        state.theta = angle;
+        state.omega = 0;
+        state.alpha = 0;
+        state.history = [];
+      }
+
+      function endDrag() {
+        if (state.isDragging) {
+          state.isDragging = false;
+          state.isPaused = false;
+          canvas.style.cursor = "grab";
+        }
+      }
+
+      function draw() {
+        const width = canvas.width / (window.devicePixelRatio || 1);
+        const height = canvas.height / (window.devicePixelRatio || 1);
+        const isDesktop = width > 1024; // Detect desktop screen width based on logical pixels ~ 1024
+
+        ctx.clearRect(0, 0, width, height);
+
+        drawProtractor(isDesktop);
+        const bob = getBobPos();
+
+        // Dây - Dày hơn trên desktop
+        ctx.beginPath();
+        ctx.moveTo(state.origin.x, state.origin.y);
+        ctx.lineTo(bob.x, bob.y);
+        ctx.lineWidth = isDesktop ? 6 : 4; // Shadow dây
+        ctx.strokeStyle = "rgba(0,0,0,0.05)";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(state.origin.x, state.origin.y);
+        ctx.lineTo(bob.x, bob.y);
+        ctx.lineWidth = isDesktop ? 2.5 : 1.5; // Dây chính
+        ctx.strokeStyle = "#374151";
+        ctx.stroke();
+
+        // Điểm treo - To hơn trên desktop
+        ctx.fillStyle = "#1f2937";
+        const hBarW = isDesktop ? 100 : 60;
+        const hBarH = isDesktop ? 6 : 4;
+        ctx.fillRect(
+          state.origin.x - hBarW / 2,
+          state.origin.y - hBarH,
+          hBarW,
+          hBarH
+        );
+
+        ctx.beginPath();
+        ctx.moveTo(state.origin.x, state.origin.y);
+        const triSize = isDesktop ? 10 : 6;
+        ctx.lineTo(state.origin.x - triSize, state.origin.y - triSize);
+        ctx.lineTo(state.origin.x + triSize, state.origin.y - triSize);
+        ctx.fillStyle = "#4b5563";
+        ctx.fill();
+
+        // Quả nặng - To hơn trên desktop
+        let rBase = isDesktop ? 25 + params.mass * 5 : 18 + params.mass * 4;
+        if (width < 600) rBase *= 0.85;
+
+        // Bóng đổ quả nặng
+        ctx.beginPath();
+        ctx.arc(
+          bob.x + (isDesktop ? 15 : 10),
+          bob.y + (isDesktop ? 15 : 10),
+          rBase,
+          0,
+          Math.PI * 2
+        );
+        ctx.fillStyle = "rgba(0,0,0,0.1)";
+        ctx.filter = "blur(6px)";
+        ctx.fill();
+        ctx.filter = "none";
+
+        // Thân quả nặng
+        ctx.beginPath();
+        ctx.arc(bob.x, bob.y, rBase, 0, Math.PI * 2);
+        let grd = ctx.createRadialGradient(
+          bob.x - rBase / 3,
+          bob.y - rBase / 3,
+          rBase / 10,
+          bob.x,
+          bob.y,
+          rBase
+        );
+        grd.addColorStop(0, "#e5e7eb");
+        grd.addColorStop(0.3, "#9ca3af");
+        grd.addColorStop(1, "#374151");
+        ctx.fillStyle = grd;
+        ctx.fill();
+        ctx.strokeStyle = "#1f2937";
+        ctx.lineWidth = isDesktop ? 1.5 : 1;
+        ctx.stroke();
+
+        if (ui.showVectors.checked) {
+          drawVectors(bob, isDesktop);
+        }
+        if (ui.showGraph.checked && state.history.length > 1) {
+          drawGraph(width, height, isDesktop);
+        }
+      }
+
+      function drawProtractor(isDesktop) {
+        ctx.save();
+        ctx.translate(state.origin.x, state.origin.y);
+        const radius = params.length * state.pixelsPerMeter;
+
+        ctx.beginPath();
+        ctx.arc(
+          0,
+          0,
+          radius + (isDesktop ? 40 : 20),
+          Math.PI / 2 - Math.PI / 3,
+          Math.PI / 2 + Math.PI / 3
+        );
+        ctx.strokeStyle = "rgba(0,0,0,0.1)";
+        ctx.lineWidth = isDesktop ? 2 : 1;
+        ctx.stroke();
+
+        ctx.font = isDesktop
+          ? "14px Inter, sans-serif"
+          : "10px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(0,0,0,0.4)"; // Đậm hơn chút trên desktop
+
+        for (let angle = -60; angle <= 60; angle += 10) {
+          let drawRad = ((angle + 90) * Math.PI) / 180;
+          let tickLen = isDesktop ? 15 : 10;
+          let gap = isDesktop ? 25 : 15;
+          let textGap = isDesktop ? 45 : 35;
+
+          let x1 = (radius + gap) * Math.cos(drawRad);
+          let y1 = (radius + gap) * Math.sin(drawRad);
+          let x2 = (radius + gap + tickLen) * Math.cos(drawRad);
+          let y2 = (radius + gap + tickLen) * Math.sin(drawRad);
+
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.lineWidth = isDesktop && Math.abs(angle) % 30 === 0 ? 2 : 1;
+          ctx.stroke();
+
+          if (Math.abs(angle) % 30 === 0) {
+            let xText = (radius + textGap) * Math.cos(drawRad);
+            let yText = (radius + textGap) * Math.sin(drawRad);
+            ctx.fillText(
+              Math.abs(angle) + "°",
+              xText,
+              yText + (isDesktop ? 5 : 3)
+            );
+          }
+        }
+
+        // Trục giữa
+        ctx.beginPath();
+        ctx.setLineDash([isDesktop ? 8 : 4, isDesktop ? 8 : 4]);
+        ctx.moveTo(0, 0);
+        ctx.lineTo(
+          0,
+          params.length * state.pixelsPerMeter + (isDesktop ? 60 : 40)
+        );
+        ctx.strokeStyle = "rgba(0,0,0,0.15)";
+        ctx.lineWidth = isDesktop ? 2 : 1;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+
+      function drawVectors(bob, isDesktop) {
+        // Tăng scale hiển thị vector trên desktop
+        const vScale = isDesktop ? 35 : window.innerWidth < 640 ? 18 : 25;
+
+        const vx = state.omega * params.length * Math.cos(state.theta) * vScale;
+        const vy =
+          -(state.omega * params.length) * Math.sin(state.theta) * vScale;
+
+        // Vector width
+        const vWidth = isDesktop ? 7 : 4;
+        const vMobileWidth = window.innerWidth < 640 ? 4 : 5;
+        const width = isDesktop ? vWidth : vMobileWidth;
+
+        drawArrow(
+          ctx,
+          bob.x,
+          bob.y,
+          bob.x + vx,
+          bob.y + vy,
+          "#10b981",
+          width,
+          isDesktop
+        );
+
+        const pLenScale = isDesktop ? 7 : window.innerWidth < 640 ? 3 : 5;
+        const pLen = params.mass * params.gravity * pLenScale;
+        drawArrow(
+          ctx,
+          bob.x,
+          bob.y,
+          bob.x,
+          bob.y + pLen,
+          "#f43f5e",
+          width,
+          isDesktop
+        );
+      }
+
+      function drawArrow(ctx, fromx, fromy, tox, toy, color, width, isDesktop) {
+        const headlen = width * (isDesktop ? 3.5 : 3.2);
+        const dx = tox - fromx;
+        const dy = toy - fromy;
+        const angle = Math.atan2(dy, dx);
+        const len = Math.sqrt(dx * dx + dy * dy);
+
+        if (len < 8) return;
+
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.2)";
+        ctx.shadowBlur = 5;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+
+        // Outline trắng
+        ctx.beginPath();
+        ctx.moveTo(fromx, fromy);
+        ctx.lineTo(tox, toy);
+        ctx.lineTo(
+          tox - headlen * Math.cos(angle - Math.PI / 6),
+          toy - headlen * Math.sin(angle - Math.PI / 6)
+        );
+        ctx.moveTo(tox, toy);
+        ctx.lineTo(
+          tox - headlen * Math.cos(angle + Math.PI / 6),
+          toy - headlen * Math.sin(angle + Math.PI / 6)
+        );
+        ctx.lineWidth = width + (isDesktop ? 4 : 3);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.stroke();
+
+        // Màu chính
+        ctx.shadowColor = "transparent";
+        ctx.beginPath();
+        ctx.moveTo(fromx, fromy);
+        ctx.lineTo(tox, toy);
+        ctx.lineWidth = width;
+        ctx.strokeStyle = color;
+        ctx.lineCap = "round";
+        ctx.stroke();
+
+        // Đầu mũi tên
+        ctx.beginPath();
+        ctx.moveTo(tox, toy);
+        ctx.lineTo(
+          tox - headlen * Math.cos(angle - Math.PI / 6),
+          toy - headlen * Math.sin(angle - Math.PI / 6)
+        );
+        ctx.lineTo(
+          tox - headlen * Math.cos(angle + Math.PI / 6),
+          toy - headlen * Math.sin(angle + Math.PI / 6)
+        );
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(255,255,255,0.5)";
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawGraph(canvasW, canvasH, isDesktop) {
+        const isMobile = canvasW < 640;
+
+        // Tăng kích thước đồ thị trên Desktop
+        let w, h, x, y;
+
+        if (isMobile) {
+          w = canvasW - 20;
+          h = 80;
+          x = 10;
+          y = canvasH - h - 10;
+        } else if (isDesktop) {
+          // Desktop rộng rãi: Đồ thị to hơn nhiều
+          w = 400;
+          h = 200;
+          x = canvasW - w - 32; // Cách lề phải 32px
+          y = canvasH - h - 32; // Cách lề đáy 32px
+        } else {
+          // Tablet
+          w = 280;
+          h = 150;
+          x = canvasW - w - 24;
+          y = canvasH - h - 24;
+        }
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, isDesktop ? 12 : 8);
+        ctx.fillStyle = "#1e293b";
+        ctx.shadowColor = "rgba(0,0,0,0.3)";
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetY = 10;
+        ctx.fill();
+        ctx.strokeStyle = "#475569";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+
+        // Màn hình trong
+        ctx.beginPath();
+        const padding = isDesktop ? 6 : 4;
+        const topBar = isDesktop ? 24 : 20;
+        ctx.roundRect(
+          x + padding,
+          y + topBar,
+          w - padding * 2,
+          h - topBar - padding,
+          4
+        );
+        ctx.fillStyle = "#0f172a";
+        ctx.fill();
+        ctx.clip();
+
+        const gridCols = 10;
+        const gridRows = 4;
+        const stepX = (w - padding * 2) / gridCols;
+        const stepY = (h - topBar - padding) / gridRows;
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(6, 182, 212, 0.15)";
+        ctx.lineWidth = 1;
+        for (let i = 1; i < gridCols; i++) {
+          let gx = x + padding + i * stepX;
+          ctx.moveTo(gx, y + topBar);
+          ctx.lineTo(gx, y + h - padding);
+        }
+        for (let i = 1; i < gridRows; i++) {
+          let gy = y + topBar + i * stepY;
+          ctx.moveTo(x + padding, gy);
+          ctx.lineTo(x + w - padding, gy);
+        }
+        ctx.stroke();
+
+        // Trục 0
+        const waveAreaH = h - topBar - padding;
+        ctx.beginPath();
+        ctx.moveTo(x + padding, y + topBar + waveAreaH / 2);
+        ctx.lineTo(x + w - padding, y + topBar + waveAreaH / 2);
+        ctx.strokeStyle = "rgba(6, 182, 212, 0.4)";
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        if (state.history.length > 1) {
+          ctx.beginPath();
+          const pointsToShow = state.history.length;
+          const waveW = w - padding * 2;
+          const waveTop = y + topBar;
+          // Hiển thị nhiều lịch sử hơn nếu đồ thị rộng
+          const historyLimit = isDesktop ? 300 : 200;
+
+          const scaleX = waveW / historyLimit;
+          const scaleY = (waveAreaH / 2 - 10) / (Math.PI / 2);
+
+          state.history.forEach((point, i) => {
+            // Chỉ vẽ phần lịch sử phù hợp với width
+            if (
+              state.history.length > historyLimit &&
+              i < state.history.length - historyLimit
+            )
+              return;
+
+            let drawIndex = i;
+            if (state.history.length < historyLimit) {
+              drawIndex = i + (historyLimit - state.history.length);
+            } else {
+              drawIndex = i - (state.history.length - historyLimit);
+            }
+
+            let px = x + padding + drawIndex * scaleX;
+            let py = waveTop + waveAreaH / 2 - point.theta * scaleY;
+
+            // Kẹp giá trị y trong khung
+            if (py < waveTop) py = waveTop;
+            if (py > waveTop + waveAreaH) py = waveTop + waveAreaH;
+
+            if (
+              i === 0 ||
+              (state.history.length > historyLimit &&
+                i === state.history.length - historyLimit)
+            )
+              ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          });
+
+          ctx.strokeStyle = "#22d3ee";
+          ctx.lineWidth = isDesktop ? 3 : 2;
+          ctx.lineJoin = "round";
+          ctx.lineCap = "round";
+          ctx.shadowColor = "rgba(34, 211, 238, 0.6)";
+          ctx.shadowBlur = 10;
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+
+          // Dot
+          const lastIdx = state.history.length - 1;
+          const lastPoint = state.history[lastIdx];
+          let dotX = x + w - padding - 2; // Luôn ở sát phải
+          let dotY = waveTop + waveAreaH / 2 - lastPoint.theta * scaleY;
+
+          ctx.beginPath();
+          ctx.arc(dotX, dotY, isDesktop ? 4 : 3, 0, Math.PI * 2);
+          ctx.fillStyle = "#ffffff";
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(dotX, dotY, isDesktop ? 8 : 6, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(34, 211, 238, 0.4)";
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // Labels
+        ctx.font = isDesktop ? "bold 12px monospace" : "bold 10px monospace";
+        ctx.fillStyle = "#94a3b8";
+        ctx.textAlign = "left";
+        ctx.fillText(
+          "OSCILLOSCOPE",
+          x + (isDesktop ? 12 : 8),
+          y + (isDesktop ? 18 : 14)
+        );
+
+        if (state.history.length > 0) {
+          let currentAngle = ((state.theta * 180) / Math.PI).toFixed(1);
+          ctx.textAlign = "right";
+          ctx.fillStyle = "#22d3ee";
+          ctx.fillText(
+            `VAL: ${currentAngle}°`,
+            x + w - (isDesktop ? 12 : 8),
+            y + (isDesktop ? 18 : 14)
+          );
+        }
+        // Chỉ hiện trục Y khi đủ chiều cao
+        if (!isMobile || h > 100) {
+          ctx.fillStyle = "rgba(255,255,255,0.5)";
+          ctx.textAlign = "right";
+          ctx.font = isDesktop ? "11px monospace" : "9px monospace";
+          const waveAreaH = h - (isDesktop ? 24 : 20) - (isDesktop ? 6 : 4);
+          const waveTop = y + (isDesktop ? 24 : 20);
+          const centerY = waveTop + waveAreaH / 2;
+
+          ctx.fillText("+90°", x + w - 6, waveTop + 12);
+          ctx.fillText("0°", x + w - 6, centerY + 3);
+          ctx.fillText("-90°", x + w - 6, waveTop + waveAreaH - 4);
+        }
+      }
+
+      function loop() {
+        updatePhysics();
+        updateStats();
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      init();
+    </script>
+  </body>
+</html>

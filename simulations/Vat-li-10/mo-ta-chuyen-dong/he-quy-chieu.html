@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>PhySim - Hệ quy chiếu tương đối</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;600&display=swap");
+
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .font-mono {
+        font-family: "Fira Code", monospace;
+      }
+      /* Ngăn chặn hành vi zoom/pan mặc định của trình duyệt trên canvas */
+      canvas {
+        touch-action: none;
+      }
+
+      /* Custom Scrollbar cho đẹp hơn */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+
+      /* Modern Range Slider Styling */
+      input[type="range"] {
+        background: transparent;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 24px;
+        width: 24px; /* Default size */
+        border-radius: 50%;
+        background: #2563eb;
+        border: 3px solid white;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+        margin-top: -10px;
+        transition: transform 0.1s;
+      }
+      @media (min-width: 1280px) {
+        input[type="range"]::-webkit-slider-thumb {
+          height: 32px;
+          width: 32px; /* Larger on big screens */
+          margin-top: -13px;
+        }
+      }
+      input[type="range"]::-webkit-slider-thumb:active {
+        transform: scale(1.1);
+        background: #1d4ed8;
+      }
+      input[type="range"]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 6px;
+        cursor: pointer;
+        background: #e2e8f0;
+        border-radius: 3px;
+      }
+
+      .hud-panel {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+
+      .math-symbol {
+        font-family: "Times New Roman", serif;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-slate-100 min-h-screen p-2 md:p-6 lg:p-8 flex justify-center text-slate-700"
+  >
+    <!-- Container chính mở rộng tối đa trên màn hình lớn -->
+    <div
+      class="w-full max-w-full xl:max-w-[95%] 2xl:max-w-[1800px] flex flex-col gap-4 md:gap-6 xl:gap-8"
+    >
+      <!-- Header Section: Responsive Flex & Scaling Text -->
+      <header
+        class="bg-white p-4 md:p-5 xl:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-end gap-4"
+      >
+        <div>
+          <div class="flex items-center gap-3 mb-1">
+            <span
+              class="bg-blue-100 text-blue-700 p-2 md:p-3 rounded-lg shadow-sm"
+              ><i class="fas fa-atom text-xl md:text-2xl"></i
+            ></span>
+            <h1
+              class="text-xl md:text-2xl xl:text-3xl font-bold text-slate-800 tracking-tight"
+            >
+              PhySim
+            </h1>
+          </div>
+          <p
+            class="text-slate-500 font-medium pl-1 text-sm md:text-base xl:text-lg"
+          >
+            Chủ đề: Tính tương đối & Hệ quy chiếu
+          </p>
+        </div>
+        <div class="w-full md:w-auto text-right">
+          <div
+            class="inline-block px-3 py-1 bg-slate-50 rounded-full text-[10px] md:text-xs xl:text-sm font-bold text-slate-400 uppercase tracking-wider border border-slate-200"
+          >
+            Vật Lý 10
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Layout: Grid system thay đổi theo màn hình -->
+      <!-- LG: 12 cột (8 canvas / 4 sidebar) | XL: 12 cột (9 canvas / 3 sidebar) -->
+      <main class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 xl:gap-8">
+        <!-- Left Column: Canvas & Controls -->
+        <div class="lg:col-span-8 xl:col-span-9 flex flex-col gap-4 xl:gap-6">
+          <!-- Canvas Container with Responsive Height -->
+          <div
+            class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden relative group w-full"
+          >
+            <!-- Responsive Height classes: Tăng dần chiều cao theo breakpoint -->
+            <div
+              class="relative w-full h-[350px] sm:h-[400px] md:h-[450px] lg:h-[500px] xl:h-[650px] 2xl:h-[750px]"
+            >
+              <canvas
+                id="simCanvas"
+                class="absolute inset-0 w-full h-full bg-slate-50 cursor-crosshair block touch-none"
+              ></canvas>
+
+              <!-- HUD: FPS -->
+              <div
+                class="absolute top-3 right-3 md:top-4 md:right-4 xl:top-6 xl:right-6 bg-black/70 backdrop-blur px-2 py-1 xl:px-3 xl:py-2 rounded shadow text-[10px] md:text-xs xl:text-sm font-mono text-green-400 border border-white/10 pointer-events-none"
+              >
+                <span id="fpsIndicator">60</span> FPS
+              </div>
+
+              <!-- HUD: Frame Indicator (Scaling) -->
+              <div
+                class="absolute top-3 left-3 md:top-4 md:left-4 xl:top-6 xl:left-6 hud-panel px-3 py-2 xl:px-4 xl:py-3 rounded-xl flex items-center gap-3 transition-all"
+              >
+                <div
+                  id="hudIcon"
+                  class="w-8 h-8 md:w-10 md:h-10 xl:w-12 xl:h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shadow-sm"
+                >
+                  <i class="fas fa-globe text-sm md:text-base xl:text-xl"></i>
+                </div>
+                <div>
+                  <div
+                    class="text-[9px] md:text-[10px] xl:text-xs uppercase font-bold text-slate-400 tracking-wider"
+                  >
+                    Hệ Quy Chiếu
+                  </div>
+                  <div
+                    id="hudText"
+                    class="text-xs md:text-sm xl:text-lg font-bold text-slate-800"
+                  >
+                    Mặt Đất
+                  </div>
+                </div>
+              </div>
+
+              <!-- HUD: Legend (Scaling) -->
+              <div
+                class="absolute bottom-3 right-3 md:bottom-4 md:right-4 xl:bottom-6 xl:right-6 hud-panel px-3 py-2 xl:px-4 xl:py-3 rounded-lg shadow-sm text-[10px] md:text-xs xl:text-sm flex flex-col sm:flex-row gap-2 sm:gap-4 xl:gap-6 border border-slate-100 items-end sm:items-center"
+              >
+                <div class="flex items-center gap-1.5 xl:gap-2">
+                  <span
+                    class="w-2.5 h-2.5 xl:w-3 xl:h-3 rounded-full bg-blue-500 shadow-sm"
+                  ></span>
+                  <span class="text-slate-600 font-medium">Xe</span>
+                </div>
+                <div class="flex items-center gap-1.5 xl:gap-2">
+                  <span
+                    class="w-2.5 h-2.5 xl:w-3 xl:h-3 rounded-full bg-emerald-600 shadow-sm"
+                  ></span>
+                  <span class="text-slate-600 font-medium">Cây</span>
+                </div>
+                <div class="flex items-center gap-1.5 xl:gap-2">
+                  <i
+                    class="fas fa-user text-slate-700 text-[10px] xl:text-sm"
+                  ></i>
+                  <span class="text-slate-600 font-medium"
+                    >Quan sát viên (O)</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls Bar: Bigger padding and elements on XL screens -->
+          <div
+            class="bg-white rounded-xl p-4 xl:p-6 shadow-sm border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 xl:gap-8"
+          >
+            <!-- Buttons Group -->
+            <div class="flex items-center gap-2 xl:gap-4 w-full sm:w-auto">
+              <button
+                id="btnStartPause"
+                class="flex-1 sm:flex-none h-12 sm:w-14 sm:h-12 xl:w-16 xl:h-14 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl flex items-center justify-center transition shadow-md hover:shadow-lg transform active:scale-95 text-lg xl:text-xl"
+              >
+                <i class="fas fa-play"></i>
+              </button>
+              <button
+                id="btnReset"
+                class="flex-1 sm:flex-none h-12 sm:w-14 sm:h-12 xl:w-16 xl:h-14 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center transition border border-slate-200 hover:border-slate-300 text-lg xl:text-xl"
+              >
+                <i class="fas fa-undo"></i>
+              </button>
+            </div>
+
+            <!-- Slider Group -->
+            <div
+              class="flex-1 w-full px-0 sm:px-4 xl:px-8 sm:border-l sm:border-r border-slate-100 flex flex-col sm:flex-row items-center gap-2 sm:gap-4 xl:gap-6"
+            >
+              <label
+                for="sliderSpeed"
+                class="text-slate-500 text-xs md:text-sm xl:text-base font-medium whitespace-nowrap w-full sm:w-auto flex justify-between sm:block"
+              >
+                <span
+                  ><i class="fas fa-gauge-high mr-2 text-indigo-400"></i>Vận tốc
+                  (v)</span
+                >
+              </label>
+              <input
+                type="range"
+                id="sliderSpeed"
+                min="0"
+                max="250"
+                value="100"
+                class="w-full h-8 xl:h-10 bg-transparent cursor-pointer touch-pan-x"
+              />
+              <div class="w-full sm:w-24 xl:w-32 text-right">
+                <span
+                  id="speedVal"
+                  class="inline-block w-full sm:w-auto text-center font-mono text-sm xl:text-lg font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 xl:px-4 xl:py-2 rounded-lg border border-indigo-100 shadow-sm"
+                  >10 m/s</span
+                >
+              </div>
+            </div>
+
+            <!-- Timer -->
+            <div
+              class="hidden sm:block font-mono text-slate-600 text-sm xl:text-lg pl-2 min-w-[80px] xl:min-w-[100px] text-right"
+            >
+              t =
+              <span
+                id="timerVal"
+                class="text-lg xl:text-2xl font-bold text-slate-800"
+                >0.0</span
+              >s
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Sidebar (Settings & Info) -->
+        <!-- LG: col-span-4 | XL: col-span-3 -->
+        <div
+          class="lg:col-span-4 xl:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4 xl:gap-6 h-fit"
+        >
+          <!-- 1. Frame Selector -->
+          <div
+            class="bg-white rounded-xl overflow-hidden shadow-md border border-slate-200 hover:border-blue-300 transition-colors"
+          >
+            <div
+              class="bg-slate-50/80 px-4 py-3 xl:p-4 border-b border-slate-200 flex justify-between items-center"
+            >
+              <h3
+                class="text-xs xl:text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2"
+              >
+                <i class="fas fa-video text-blue-400 text-base xl:text-lg"></i>
+                Góc Nhìn (hệ quy chiếu)
+              </h3>
+            </div>
+            <div class="p-3 xl:p-4 space-y-2 xl:space-y-3">
+              <!-- Radio 1 -->
+              <label
+                class="relative flex items-center p-3 xl:p-4 rounded-lg border-2 cursor-pointer transition-all hover:bg-slate-50 active:scale-[0.99] group"
+                id="lblFrameGround"
+              >
+                <input
+                  type="radio"
+                  name="frame"
+                  value="ground"
+                  checked
+                  class="peer sr-only"
+                />
+                <div
+                  class="w-full h-full absolute inset-0 rounded-lg border-transparent peer-checked:border-blue-500 peer-checked:bg-blue-50/50 pointer-events-none transition-colors"
+                ></div>
+                <div
+                  class="w-10 h-10 xl:w-12 xl:h-12 rounded-full bg-slate-100 text-slate-400 peer-checked:bg-blue-600 peer-checked:text-white mr-3 xl:mr-4 flex items-center justify-center transition-all shadow-sm shrink-0"
+                >
+                  <i class="fas fa-globe-americas text-lg xl:text-xl"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div
+                    class="font-bold text-sm xl:text-base text-slate-700 peer-checked:text-blue-700 truncate"
+                  >
+                    Hệ Mặt Đất (R₁)
+                  </div>
+                  <div
+                    class="text-[10px] xl:text-xs text-slate-500 mt-0.5 truncate"
+                  >
+                    Người đứng yên quan sát
+                  </div>
+                </div>
+                <i
+                  class="fas fa-check-circle text-blue-600 opacity-0 peer-checked:opacity-100 transition-opacity ml-2"
+                ></i>
+              </label>
+
+              <!-- Radio 2 -->
+              <label
+                class="relative flex items-center p-3 xl:p-4 rounded-lg border-2 cursor-pointer transition-all hover:bg-slate-50 active:scale-[0.99] group"
+                id="lblFrameCar"
+              >
+                <input
+                  type="radio"
+                  name="frame"
+                  value="car"
+                  class="peer sr-only"
+                />
+                <div
+                  class="w-full h-full absolute inset-0 rounded-lg border-transparent peer-checked:border-red-500 peer-checked:bg-red-50/50 pointer-events-none transition-colors"
+                ></div>
+                <div
+                  class="w-10 h-10 xl:w-12 xl:h-12 rounded-full bg-slate-100 text-slate-400 peer-checked:bg-red-600 peer-checked:text-white mr-3 xl:mr-4 flex items-center justify-center transition-all shadow-sm shrink-0"
+                >
+                  <i class="fas fa-car text-lg xl:text-xl"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div
+                    class="font-bold text-sm xl:text-base text-slate-700 peer-checked:text-red-700 truncate"
+                  >
+                    Hệ Gắn Với Xe (R₂)
+                  </div>
+                  <div
+                    class="text-[10px] xl:text-xs text-slate-500 mt-0.5 truncate"
+                  >
+                    Người trên xe quan sát
+                  </div>
+                </div>
+                <i
+                  class="fas fa-check-circle text-red-600 opacity-0 peer-checked:opacity-100 transition-opacity ml-2"
+                ></i>
+              </label>
+            </div>
+          </div>
+
+          <!-- 2. Display Options -->
+          <div
+            class="bg-white rounded-xl p-4 xl:p-6 shadow-sm border border-slate-200 flex flex-col justify-center"
+          >
+            <h3
+              class="text-xs xl:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3 xl:mb-4"
+            >
+              Tùy chọn hiển thị
+            </h3>
+            <div class="space-y-1 xl:space-y-2">
+              <label
+                class="flex items-center justify-between cursor-pointer p-2 xl:p-3 hover:bg-slate-50 rounded-lg transition-colors select-none active:bg-slate-100"
+              >
+                <span
+                  class="text-sm xl:text-base font-medium text-slate-700 flex items-center gap-2"
+                >
+                  <i
+                    class="fas fa-arrow-right-long text-indigo-400 w-5 text-center text-lg"
+                  ></i>
+                  Vector Vận Tốc
+                </span>
+                <div
+                  class="relative inline-flex items-center cursor-pointer scale-110 xl:scale-125 origin-right"
+                >
+                  <input
+                    type="checkbox"
+                    id="chkVectors"
+                    checked
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"
+                  ></div>
+                </div>
+              </label>
+              <label
+                class="flex items-center justify-between cursor-pointer p-2 xl:p-3 hover:bg-slate-50 rounded-lg transition-colors select-none active:bg-slate-100"
+              >
+                <span
+                  class="text-sm xl:text-base font-medium text-slate-700 flex items-center gap-2"
+                >
+                  <i
+                    class="fas fa-table-cells text-indigo-400 w-5 text-center text-lg"
+                  ></i>
+                  Lưới Tọa Độ
+                </span>
+                <div
+                  class="relative inline-flex items-center cursor-pointer scale-110 xl:scale-125 origin-right"
+                >
+                  <input
+                    type="checkbox"
+                    id="chkGrid"
+                    checked
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"
+                  ></div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 3. Math Analysis -->
+          <div
+            class="sm:col-span-2 lg:col-span-1 bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200 flex flex-col"
+          >
+            <div
+              class="bg-slate-50/80 px-4 py-3 xl:p-4 border-b border-slate-200"
+            >
+              <h3
+                class="text-xs xl:text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2"
+              >
+                <i
+                  class="fas fa-calculator text-emerald-500 text-base xl:text-lg"
+                ></i>
+                Phân Tích
+              </h3>
+            </div>
+            <div class="p-4 xl:p-6 flex-1 flex flex-col gap-4 xl:gap-6">
+              <div
+                id="equationsPanel"
+                class="bg-gradient-to-br from-slate-50 to-white rounded-lg p-3 xl:p-4 border border-slate-200 text-sm xl:text-base text-slate-800 shadow-inner"
+              >
+                <!-- Dynamic Content -->
+              </div>
+
+              <div
+                class="grid grid-cols-2 gap-3 xl:gap-4 text-xs md:text-sm xl:text-base"
+              >
+                <div
+                  class="bg-slate-50 p-2 xl:p-3 rounded border border-slate-100"
+                >
+                  <div
+                    class="text-slate-400 mb-1 text-[10px] xl:text-xs uppercase font-bold"
+                  >
+                    Tọa độ Xe (<span class="math-symbol">x</span>)
+                  </div>
+                  <div
+                    id="valCarX"
+                    class="font-mono font-bold text-slate-700 text-sm md:text-base xl:text-xl"
+                  >
+                    0 m
+                  </div>
+                </div>
+                <div
+                  class="bg-slate-50 p-2 xl:p-3 rounded border border-slate-100"
+                >
+                  <div
+                    class="text-slate-400 mb-1 text-[10px] xl:text-xs uppercase font-bold"
+                  >
+                    Tọa độ Mốc (<span class="math-symbol">x</span><sub>0</sub>)
+                  </div>
+                  <div
+                    id="valTreeX"
+                    class="font-mono font-bold text-slate-700 text-sm md:text-base xl:text-xl"
+                  >
+                    0 m
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="px-4 py-3 xl:px-6 xl:py-4 bg-yellow-50 border-t border-yellow-100 text-xs xl:text-sm text-yellow-800 italic flex gap-2 items-start"
+            >
+              <i class="fas fa-lightbulb mt-0.5 shrink-0 text-base"></i>
+              <span id="msgBox">Chuyển động có tính tương đối.</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Script -->
+    <script>
+      // --- Cấu hình & Trạng thái ---
+      const canvas = document.getElementById("simCanvas");
+      const ctx = canvas.getContext("2d");
+
+      // Constants
+      const DEFAULT_SCALE = 20; // 20px per meter default
+      const GROUND_Y_OFFSET = 100;
+
+      let width, height;
+
+      const state = {
+        running: false,
+        time: 0,
+        carWorldX: 0, // Vị trí thực trong hệ vũ trụ (m)
+        velocity: 10, // m/s
+        frame: "ground", // 'ground' | 'car'
+        scale: DEFAULT_SCALE, // Tỉ lệ zoom động
+        showVectors: true,
+        showGrid: true,
+      };
+
+      // Assets Data
+      const car = {
+        widthM: 4.8,
+        heightM: 1.6,
+        colorBody: "#2563EB",
+        colorTop: "#60A5FA",
+        wheelR: 0.35,
+      };
+      const tree = { worldX: 20, widthM: 2, heightM: 5 };
+
+      // Clouds for Parallax
+      const clouds = [];
+      for (let i = 0; i < 8; i++) {
+        clouds.push({
+          x: Math.random() * 2000 - 1000,
+          y: Math.random() * 150 + 20,
+          scale: 0.5 + Math.random() * 0.8,
+          speedFactor: 0.1 + Math.random() * 0.1,
+        });
+      }
+
+      // DOM Elements
+      const el = {
+        btnStartPause: document.getElementById("btnStartPause"),
+        btnReset: document.getElementById("btnReset"),
+        sliderSpeed: document.getElementById("sliderSpeed"),
+        speedVal: document.getElementById("speedVal"),
+        timerVal: document.getElementById("timerVal"),
+        radioFrames: document.getElementsByName("frame"),
+        lblFrameGround: document.getElementById("lblFrameGround"),
+        lblFrameCar: document.getElementById("lblFrameCar"),
+        chkVectors: document.getElementById("chkVectors"),
+        chkGrid: document.getElementById("chkGrid"),
+        equationsPanel: document.getElementById("equationsPanel"),
+        valCarX: document.getElementById("valCarX"),
+        valTreeX: document.getElementById("valTreeX"),
+        msgBox: document.getElementById("msgBox"),
+        fpsIndicator: document.getElementById("fpsIndicator"),
+        hudIcon: document.getElementById("hudIcon"),
+        hudText: document.getElementById("hudText"),
+      };
+
+      // --- Core Functions ---
+
+      function resize() {
+        // Lấy kích thước thực tế của container chứa canvas
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
+        // Cập nhật kích thước canvas (pixel thực)
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+
+        // Scale context để vẽ đúng tỉ lệ trên màn hình Retina
+        ctx.scale(dpr, dpr);
+
+        // Cập nhật biến width/height logic để dùng trong tính toán vẽ
+        width = rect.width;
+        height = rect.height;
+
+        draw();
+      }
+
+      let lastTime = 0;
+      let frameCount = 0;
+      let lastFpsTime = 0;
+
+      function loop(timestamp) {
+        if (!lastTime) lastTime = timestamp;
+        const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+        lastTime = timestamp;
+
+        // FPS
+        frameCount++;
+        if (timestamp - lastFpsTime >= 1000) {
+          el.fpsIndicator.innerText = frameCount;
+          frameCount = 0;
+          lastFpsTime = timestamp;
+        }
+
+        if (state.running) {
+          state.carWorldX += state.velocity * dt;
+          state.time += dt;
+          updateStatsUI();
+        }
+
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      // --- Drawing Logic ---
+
+      function draw() {
+        ctx.clearRect(0, 0, width, height);
+
+        // 1. Sky Gradient
+        const grdSky = ctx.createLinearGradient(0, 0, 0, height);
+        grdSky.addColorStop(0, "#3B82F6");
+        grdSky.addColorStop(0.5, "#93C5FD");
+        grdSky.addColorStop(1, "#E0F2FE");
+        ctx.fillStyle = grdSky;
+        ctx.fillRect(0, 0, width, height);
+
+        const groundY = height - GROUND_Y_OFFSET;
+
+        // --- AUTO ZOOM & CAMERA LOGIC ---
+        const m2px = (m) => m * state.scale;
+
+        let cameraX_m = 0;
+        let screenOffsetX = width / 3;
+
+        if (state.frame === "ground") {
+          // Responsive Screen Offset: Trên mobile, offset ít hơn để tận dụng không gian
+          const isMobile = width < 640;
+          screenOffsetX = isMobile ? 40 : 80;
+
+          const requiredDistM = state.carWorldX + 10;
+          const availableWidthPx = width - screenOffsetX - (isMobile ? 20 : 50);
+
+          let targetScale = DEFAULT_SCALE;
+          if (requiredDistM > 0) {
+            const fitScale = availableWidthPx / requiredDistM;
+            targetScale = Math.min(DEFAULT_SCALE, Math.max(1, fitScale));
+          }
+
+          state.scale += (targetScale - state.scale) * 0.1;
+          cameraX_m = 0;
+        } else {
+          state.scale = DEFAULT_SCALE;
+          cameraX_m = state.carWorldX;
+          screenOffsetX = width / 3;
+        }
+
+        const toScreenX = (x_m) => {
+          return (x_m - cameraX_m) * state.scale + screenOffsetX;
+        };
+
+        // 2. Background
+        drawClouds(toScreenX, cameraX_m);
+        drawEnvironment(toScreenX, groundY, width, height);
+
+        // 3. Objects
+        const startNode =
+          Math.floor((cameraX_m - screenOffsetX / state.scale) / 50) * 50;
+        const range = Math.ceil(width / (50 * state.scale)) + 2;
+
+        for (let i = -2; i < range; i++) {
+          const treePos = startNode + i * 50;
+          let isMainTree = Math.abs(treePos - tree.worldX) < 1;
+          const drawPos = isMainTree
+            ? tree.worldX
+            : treePos + Math.sin(treePos) * 5;
+
+          if (!isMainTree && Math.abs(drawPos) < 8) continue;
+
+          drawTree(
+            toScreenX(drawPos),
+            groundY,
+            m2px(tree.widthM),
+            m2px(tree.heightM),
+            isMainTree
+          );
+        }
+
+        if (
+          state.frame === "ground" ||
+          (state.frame === "car" && toScreenX(0) > -50)
+        ) {
+          drawObserver(toScreenX(0), groundY, state.scale);
+        }
+
+        const carScreenX = toScreenX(state.carWorldX);
+        drawCar(carScreenX, groundY, m2px(car.widthM), m2px(car.heightM));
+        drawPositionDimensions(toScreenX, groundY, m2px);
+
+        if (state.showVectors) {
+          drawVectors(toScreenX, groundY, m2px);
+        }
+      }
+
+      // --- Helper Drawing Functions (Giữ nguyên logic vẽ) ---
+
+      function drawObserver(x, groundY, scale) {
+        const s = Math.max(0.6, scale / DEFAULT_SCALE);
+        ctx.fillStyle = "#1E293B";
+        ctx.beginPath();
+        ctx.arc(x, groundY - 50 * s, 6 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#1E293B";
+        ctx.lineWidth = 3 * s;
+        ctx.beginPath();
+        ctx.moveTo(x, groundY - 44 * s);
+        ctx.lineTo(x, groundY - 20 * s);
+        ctx.moveTo(x, groundY - 20 * s);
+        ctx.lineTo(x - 8 * s, groundY);
+        ctx.moveTo(x, groundY - 20 * s);
+        ctx.lineTo(x + 8 * s, groundY);
+        ctx.moveTo(x, groundY - 40 * s);
+        ctx.lineTo(x - 8 * s, groundY - 25 * s);
+        ctx.moveTo(x, groundY - 40 * s);
+        ctx.lineTo(x + 8 * s, groundY - 25 * s);
+        ctx.stroke();
+
+        // Text scale logic để không bị quá nhỏ trên mobile
+        const fontSize = Math.max(9, 10 * s);
+        ctx.font = `bold ${fontSize}px 'Inter'`;
+        ctx.fillStyle = "#475569";
+        ctx.textAlign = "center";
+        ctx.fillText("Người quan sát", x, groundY - 60 * s);
+      }
+
+      function drawClouds(toScreenX, cameraX_m) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+        clouds.forEach((cloud) => {
+          const windSpeed = 2;
+          const cloudCurrentWorldX = cloud.x + state.time * windSpeed;
+          const cloudScreenX =
+            (cloudCurrentWorldX - cameraX_m * 0.2) * state.scale + width / 3;
+          const modW = width * 1.5;
+          let finalX = cloudScreenX % modW;
+          if (finalX < -200) finalX += modW;
+          if (finalX > width + 200) finalX -= modW;
+          const s = cloud.scale;
+          ctx.beginPath();
+          ctx.arc(finalX, cloud.y, 30 * s, 0, Math.PI * 2);
+          ctx.arc(finalX + 25 * s, cloud.y - 10 * s, 35 * s, 0, Math.PI * 2);
+          ctx.arc(finalX + 50 * s, cloud.y, 30 * s, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+
+      function drawEnvironment(toScreenX, groundY, w, h) {
+        ctx.fillStyle = "#F1F5F9";
+        ctx.fillRect(0, groundY, w, h - groundY);
+        ctx.beginPath();
+        ctx.moveTo(0, groundY);
+        ctx.lineTo(w, groundY);
+        ctx.strokeStyle = "#94A3B8";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        if (!state.showGrid) return;
+        let stepM = 5;
+        if (state.scale < 10) stepM = 10;
+        if (state.scale < 5) stepM = 20;
+        if (state.scale < 2) stepM = 50;
+
+        const visibleMinM =
+          (0 - width) / state.scale +
+          (state.frame === "car" ? state.carWorldX : 0);
+        const visibleMaxM =
+          (width * 2) / state.scale +
+          (state.frame === "car" ? state.carWorldX : 0);
+        const startM = Math.floor(visibleMinM / stepM) * stepM;
+        const endM = Math.ceil(visibleMaxM / stepM) * stepM;
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.font = "10px 'Fira Code'";
+        for (let x = startM; x <= endM; x += stepM) {
+          const sx = toScreenX(x);
+          ctx.beginPath();
+          ctx.moveTo(sx, groundY);
+          ctx.lineTo(sx, groundY + 8);
+          ctx.strokeStyle = "#94A3B8";
+          ctx.stroke();
+          let val = state.frame === "ground" ? x : x - state.carWorldX;
+          ctx.fillStyle = state.frame === "ground" ? "#64748B" : "#EF4444";
+          ctx.fillText(Math.round(val), sx, groundY + 12);
+        }
+      }
+
+      function drawTree(x, y, w, h, isMain) {
+        ctx.fillStyle = "rgba(0,0,0,0.15)";
+        ctx.beginPath();
+        ctx.ellipse(x, y, w / 2, w / 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = isMain ? "#78350F" : "#78716C";
+        ctx.fillRect(x - w / 6, y - h / 2, w / 3, h / 2);
+        ctx.fillStyle = isMain ? "#15803D" : "#A8A29E";
+        const r = w / 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y - h / 2, r, 0, Math.PI * 2);
+        ctx.arc(x - r / 2, y - h / 2 - r / 1.5, r * 0.9, 0, Math.PI * 2);
+        ctx.arc(x + r / 2, y - h / 2 - r / 1.5, r * 0.9, 0, Math.PI * 2);
+        ctx.fill();
+        if (isMain) {
+          ctx.fillStyle = "rgba(255,255,255,0.1)";
+          ctx.beginPath();
+          ctx.arc(x - r / 2, y - h / 2 - r / 1.5, r * 0.6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#064E3B";
+          ctx.font = "bold 12px Inter";
+          ctx.fillText("Mốc", x, y + 25);
+        }
+      }
+
+      function drawCar(x, y, w, h) {
+        if (state.running && state.velocity > 5 && state.frame === "ground") {
+          ctx.strokeStyle = "rgba(0,0,0,0.1)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x - w, y - h / 2);
+          ctx.lineTo(x - w - 20 - state.velocity / 2, y - h / 2);
+          ctx.moveTo(x - w, y - h / 4);
+          ctx.lineTo(x - w - 10 - state.velocity / 3, y - h / 4);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
+        ctx.beginPath();
+        ctx.ellipse(x, y, w / 1.8, w / 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = car.colorBody;
+        ctx.beginPath();
+        ctx.moveTo(x - w / 2 + 10, y - 5);
+        ctx.lineTo(x - w / 2, y - h * 0.4);
+        ctx.lineTo(x - w / 4, y - h * 0.45);
+        ctx.lineTo(x - w / 6, y - h * 0.85);
+        ctx.lineTo(x + w / 6, y - h * 0.85);
+        ctx.lineTo(x + w / 3, y - h * 0.5);
+        ctx.lineTo(x + w / 2, y - h * 0.55);
+        ctx.lineTo(x + w / 2 + 5, y - 5);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "#93C5FD";
+        ctx.beginPath();
+        ctx.moveTo(x - w / 6 + 5, y - h * 0.8);
+        ctx.lineTo(x + w / 6 - 5, y - h * 0.8);
+        ctx.lineTo(x + w / 3 - 5, y - h * 0.55);
+        ctx.lineTo(x - w / 4 + 10, y - h * 0.5);
+        ctx.fill();
+
+        ctx.fillStyle = "#FEF3C7";
+        ctx.beginPath();
+        ctx.ellipse(
+          x + w / 2 - 2,
+          y - h * 0.45,
+          4,
+          8,
+          Math.PI / 4,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        const r = car.wheelR * state.scale;
+        drawWheel(x - w / 3.2, y, r);
+        drawWheel(x + w / 3.2, y, r);
+      }
+
+      function drawWheel(x, y, r) {
+        ctx.fillStyle = "#1E293B";
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#94A3B8";
+        ctx.beginPath();
+        ctx.arc(x, y, r * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#E2E8F0";
+        ctx.lineWidth = 2;
+        const angle = state.carWorldX / car.wheelR;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.6, 0);
+        ctx.lineTo(r * 0.6, 0);
+        ctx.moveTo(0, -r * 0.6);
+        ctx.lineTo(0, r * 0.6);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawPositionDimensions(toScreenX, groundY, m2px) {
+        if (state.frame !== "ground") return;
+        if (state.carWorldX < 0.5) return;
+
+        const carScreenX = toScreenX(state.carWorldX);
+        const originScreenX = toScreenX(0);
+        const yLevel = groundY + 40;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = "rgba(59, 130, 246, 0.5)";
+        ctx.lineWidth = 1.5;
+        ctx.moveTo(carScreenX, groundY - m2px(car.heightM) / 2);
+        ctx.lineTo(carScreenX, yLevel);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(originScreenX, groundY);
+        ctx.lineTo(originScreenX, yLevel);
+        ctx.stroke();
+
+        const color = "#2563EB";
+        ctx.beginPath();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.moveTo(originScreenX, yLevel);
+        ctx.lineTo(carScreenX, yLevel);
+        ctx.stroke();
+
+        const arrowSize = 5;
+        ctx.beginPath();
+        ctx.moveTo(originScreenX, yLevel);
+        ctx.lineTo(originScreenX + arrowSize, yLevel - arrowSize);
+        ctx.lineTo(originScreenX + arrowSize, yLevel + arrowSize);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(carScreenX, yLevel);
+        ctx.lineTo(carScreenX - arrowSize, yLevel - arrowSize);
+        ctx.lineTo(carScreenX - arrowSize, yLevel + arrowSize);
+        ctx.fill();
+
+        const midX = (originScreenX + carScreenX) / 2;
+        if (carScreenX - originScreenX > 60) {
+          const text = `x = ${state.carWorldX.toFixed(1)}m`;
+          ctx.font = "bold 12px 'Fira Code'";
+          const tm = ctx.measureText(text);
+          ctx.fillStyle = "rgba(255,255,255,0.9)";
+          ctx.fillRect(midX - tm.width / 2 - 4, yLevel - 10, tm.width + 8, 20);
+          ctx.fillStyle = color;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(text, midX, yLevel);
+        }
+        ctx.restore();
+      }
+
+      function drawVectors(toScreenX, y, m2px) {
+        const vScale = 3.5;
+        const v = state.velocity;
+        const carX = toScreenX(state.carWorldX);
+        const carTopY = y - m2px(car.heightM);
+        const treeX = toScreenX(tree.worldX);
+        const treeTopY = y - m2px(tree.heightM);
+        ctx.font = "bold 13px 'Fira Code'";
+        ctx.textAlign = "center";
+        const vecOffset = 50;
+
+        if (state.frame === "ground") {
+          drawVectorArrow(
+            carX,
+            carTopY - vecOffset,
+            v * vScale,
+            `v = ${v} m/s`,
+            "#2563EB"
+          );
+          drawZeroVector(treeX, treeTopY - 20, "v = 0", "#059669");
+        } else {
+          drawZeroVector(carX, carTopY - vecOffset, "v = 0", "#DC2626");
+          drawVectorArrow(
+            treeX,
+            treeTopY - 20,
+            -v * vScale,
+            `v' = -${v} m/s`,
+            "#059669"
+          );
+        }
+      }
+
+      function drawVectorArrow(x, y, len, text, color) {
+        const minLen = 40;
+        let drawLen = len;
+        if (Math.abs(len) > 0 && Math.abs(len) < minLen)
+          drawLen = len > 0 ? minLen : -minLen;
+        if (Math.abs(drawLen) < 1) return;
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + drawLen, y);
+        ctx.stroke();
+        const headLen = 14;
+        const headWidth = 10;
+        const dir = Math.sign(drawLen);
+        ctx.beginPath();
+        ctx.moveTo(x + drawLen, y);
+        ctx.lineTo(x + drawLen - headLen * dir, y - headWidth / 2);
+        ctx.lineTo(x + drawLen - headLen * dir + 3 * dir, y);
+        ctx.lineTo(x + drawLen - headLen * dir, y + headWidth / 2);
+        ctx.closePath();
+        ctx.fill();
+        drawLabel(x + drawLen / 2, y - 28, text, color);
+        ctx.restore();
+      }
+
+      function drawZeroVector(x, y, text, color) {
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, 10, 0, Math.PI * 2);
+        ctx.stroke();
+        drawLabel(x, y - 28, text, color);
+        ctx.restore();
+      }
+
+      function drawLabel(x, y, text, color) {
+        ctx.font = "bold 12px 'Inter'";
+        const metrics = ctx.measureText(text);
+        const w = metrics.width + 16;
+        const h = 24;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+        ctx.shadowColor = "rgba(0, 0, 0, 0.15)";
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 2;
+        roundRect(ctx, x - w / 2, y - h / 2, w, h, 6);
+        ctx.fill();
+        ctx.shadowColor = "transparent";
+        ctx.fillStyle = color;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, x, y + 1);
+      }
+
+      function roundRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(
+          x + width,
+          y + height,
+          x + width - radius,
+          y + height
+        );
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+      }
+
+      // --- UI Updates ---
+      function updateStatsUI() {
+        el.timerVal.innerText = state.time.toFixed(1);
+        if (state.frame === "ground") {
+          el.valCarX.innerText = state.carWorldX.toFixed(1) + " m";
+          el.valTreeX.innerText = tree.worldX.toFixed(1) + " m";
+          el.equationsPanel.innerHTML = `<div class="font-bold border-b border-indigo-200 pb-1 mb-2 flex justify-between"><span>HQC: Mặt Đất</span><span class="text-[10px] xl:text-xs bg-white px-2 py-0.5 rounded text-slate-500 font-normal border">Inertial</span></div><div class="grid grid-cols-1 gap-1"><div>x<sub>xe</sub> = ${state.velocity} · t</div><div>v<sub>xe</sub> = ${state.velocity} m/s</div><div class="text-slate-400 mt-1 text-[10px] xl:text-xs">Mốc cây đứng yên (v=0)</div></div>`;
+          el.msgBox.innerText =
+            "Trong HQC này: Vị trí của Xe thay đổi theo thời gian. Mốc cố định.";
+        } else {
+          const relTreeX = tree.worldX - state.carWorldX;
+          el.valCarX.innerText = "0.0 m (Gốc)";
+          el.valTreeX.innerText = relTreeX.toFixed(1) + " m";
+          el.equationsPanel.innerHTML = `<div class="font-bold border-b border-indigo-200 pb-1 mb-2 flex justify-between text-red-700"><span>HQC: Xe</span><span class="text-[10px] xl:text-xs bg-white px-2 py-0.5 rounded text-slate-500 font-normal border">Moving</span></div><div class="grid grid-cols-1 gap-1"><div>x'<sub>cây</sub> = x₀ - ${state.velocity}t</div><div>v'<sub>cây</sub> = -${state.velocity} m/s</div><div class="text-slate-400 mt-1 text-[10px] xl:text-xs">Xe đứng yên (v'=0)</div></div>`;
+          el.msgBox.innerText =
+            "Trong HQC này: Bạn đứng yên, Cây chuyển động lùi về phía sau.";
+        }
+      }
+
+      // --- Events ---
+      el.btnStartPause.addEventListener("click", () => {
+        state.running = !state.running;
+        const icon = el.btnStartPause.querySelector("i");
+        if (state.running) {
+          icon.className = "fas fa-pause";
+          el.btnStartPause.classList.replace("bg-indigo-600", "bg-amber-500");
+          el.btnStartPause.classList.replace(
+            "hover:bg-indigo-700",
+            "hover:bg-amber-600"
+          );
+        } else {
+          icon.className = "fas fa-play";
+          el.btnStartPause.classList.replace("bg-amber-500", "bg-indigo-600");
+          el.btnStartPause.classList.replace(
+            "hover:bg-amber-600",
+            "hover:bg-indigo-700"
+          );
+        }
+      });
+
+      el.btnReset.addEventListener("click", () => {
+        state.running = false;
+        state.time = 0;
+        state.carWorldX = 0;
+        state.scale = DEFAULT_SCALE;
+        const icon = el.btnStartPause.querySelector("i");
+        icon.className = "fas fa-play";
+        el.btnStartPause.classList.replace("bg-amber-500", "bg-indigo-600");
+        updateStatsUI();
+        draw();
+      });
+
+      el.sliderSpeed.addEventListener("input", (e) => {
+        const val = parseInt(e.target.value);
+        state.velocity = Math.round(val / 5);
+        el.speedVal.innerText = state.velocity + " m/s";
+        updateStatsUI();
+        draw();
+      });
+
+      el.radioFrames.forEach((radio) => {
+        radio.addEventListener("change", (e) => {
+          state.frame = e.target.value;
+          if (state.frame === "ground") {
+            el.lblFrameGround.classList.add("border-blue-500", "bg-blue-50");
+            el.lblFrameGround.classList.remove("border-transparent");
+            el.lblFrameCar.classList.remove("border-red-500", "bg-red-50");
+            el.lblFrameCar.classList.add("border-transparent");
+            el.hudIcon.className =
+              "w-8 h-8 md:w-10 md:h-10 xl:w-12 xl:h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shadow-sm";
+            el.hudIcon.innerHTML =
+              '<i class="fas fa-globe text-sm md:text-base xl:text-xl"></i>';
+            el.hudText.innerText = "Mặt Đất";
+          } else {
+            el.lblFrameCar.classList.add("border-red-500", "bg-red-50");
+            el.lblFrameCar.classList.remove("border-transparent");
+            el.lblFrameGround.classList.remove("border-blue-500", "bg-blue-50");
+            el.lblFrameGround.classList.add("border-transparent");
+            el.hudIcon.className =
+              "w-8 h-8 md:w-10 md:h-10 xl:w-12 xl:h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center shadow-sm";
+            el.hudIcon.innerHTML =
+              '<i class="fas fa-car text-sm md:text-base xl:text-xl"></i>';
+            el.hudText.innerText = "Xe";
+          }
+          updateStatsUI();
+          draw();
+        });
+      });
+
+      el.chkVectors.addEventListener("change", (e) => {
+        state.showVectors = e.target.checked;
+        draw();
+      });
+      el.chkGrid.addEventListener("change", (e) => {
+        state.showGrid = e.target.checked;
+        draw();
+      });
+
+      window.addEventListener("resize", () => {
+        resize();
+      });
+
+      el.sliderSpeed.value = state.velocity * 5;
+      el.speedVal.innerText = state.velocity + " m/s";
+      el.lblFrameGround.classList.add("border-blue-500", "bg-blue-50");
+
+      // Init
+      resize();
+      updateStatsUI();
+      requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>

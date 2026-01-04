@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PhySim - Physics Simulation Project</title>
+    <link rel="stylesheet" href="main.css" />
+    <script type="module" src="main.js" defer></script>
+  </head>
+  <body>
+    <!-- intro -->
+    <div id="intro">
+      <div class="intro-box">
+        <h1>PHYSIM</h1>
+        <h3>Physics Simulation Project</h3>
+      </div>
+      <p><strong>Chào mừng bạn đến với thế giới mô phỏng vật lý!</strong></p>
+      <div class="members">
+        <p><strong>Thành viên nhóm:</strong></p>
+        <span>Nguyễn Huy Hoàng</span>
+        <span>Phạm Ngọc Lan Hương</span>
+      </div>
+    </div>
+
+    <!-- skip link -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <!-- header -->
+    <header id="header" class="header">
+      <div class="container">
+        <div class="header-content">
+          <a href="#home" class="logo" aria-label="ScienceSim Home">
+            <div class="logo-icon">
+              <div class="logo-circle"></div>
+            </div>
+            <span class="logo-text">PHYSIM</span>
+          </a>
+
+          <!-- navigation -->
+          <nav class="nav-desktop" aria-label="Main navigation">
+            <a href="#home" class="nav-link">Trang Chủ</a>
+            <a href="#about" class="nav-link">Giới Thiệu</a>
+            <a href="#simulations" class="nav-link">Mô Phỏng</a>
+            <a href="#contact" class="nav-link">Liên Hệ</a>
+          </nav>
+
+          <!-- mobile menu -->
+          <button
+            class="menu-toggle"
+            id="menuToggle"
+            aria-label="Toggle menu"
+            aria-expanded="false"
+          >
+            <span class="menu-icon"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="nav-mobile" id="mobileMenu">
+        <nav aria-label="Mobile navigation">
+          <a href="#home" class="nav-link-mobile">Trang Chủ</a>
+          <a href="#about" class="nav-link-mobile">Giới Thiệu</a>
+          <a href="#simulations" class="nav-link-mobile">Mô Phỏng</a>
+          <a href="#contact" class="nav-link-mobile">Liên Hệ</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- main content -->
+    <main id="main-content">
+      <section id="home" class="hero">
+        <div class="container">
+          <div class="hero-grid">
+            <div class="hero-content">
+              <h1 class="hero-title">
+                Khám Phá Vật Lý Qua Các Mô Phỏng Tương Tác
+              </h1>
+              <p class="hero-description">
+                Khám phá các khái niệm vật lý thông qua các thí nghiệm trực
+                quan. Được xây dựng cho những tâm hồn tò mò và người học chủ
+                động.
+              </p>
+              <a href="#simulations" class="btn-primary" role="button">
+                Bắt Đầu Khám Phá
+                <svg
+                  class="arrow-icon"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </a>
+              <p class="hero-meta">
+                Miễn Phí • 50+ Mô Phỏng Vật Lý chương trình THPT
+              </p>
+            </div>
+
+            <!-- visual elements -->
+            <div class="hero-visual">
+              <div class="visual-glow"></div>
+              <div class="visual-container">
+                <div class="float-shape shape-1"></div>
+                <div class="float-shape shape-2"></div>
+                <div class="float-shape shape-3"></div>
+                <div class="center-shape"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- features -->
+      <section class="features">
+        <div class="container">
+          <div class="section-header">
+            <h2 class="section-title">Tại Sao Học Với Mô Phỏng?</h2>
+            <p class="section-description">
+              Tương tác với mô phỏng không chỉ giúp bạn hiểu mà còn nhớ lâu hơn
+            </p>
+          </div>
+
+          <!-- features grid -->
+          <div class="features-grid">
+            <!-- feature card 1-->
+            <div class="feature-card">
+              <div class="feature-icon gradient-blue" aria-hidden="true">
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  role="img"
+                  aria-label="Document icon"
+                >
+                  <path
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  ></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <path d="M12 18v-4"></path>
+                  <path d="M12 14h.01"></path>
+                </svg>
+              </div>
+              <h3 class="feature-title">Khám Phá thực hành</h3>
+              <p class="feature-description">
+                Nhấp chuột, kéo và thử nghiệm. Học bằng cách thực hành. Mỗi mô
+                phỏng đều phản hồi thao tác của bạn trong thời gian thực.
+              </p>
+            </div>
+
+            <!-- feature card 2-->
+            <div class="feature-card">
+              <div class="feature-icon gradient-teal" aria-hidden="true">
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  role="img"
+                  aria-label="Eye icon"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </div>
+              <h3 class="feature-title">Hiểu trực quan</h3>
+              <p class="feature-description">
+                Hãy để các khái niệm trở nên sống động. Những ý tưởng phức tạp
+                trở nên rõ ràng hơn khi bạn có thể hình dung chúng bằng chuyển
+                động và màu sắc.
+              </p>
+            </div>
+
+            <!-- feature card 3 -->
+            <div class="feature-card">
+              <div class="feature-icon gradient-coral" aria-hidden="true">
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  role="img"
+                  aria-label="Shield icon"
+                >
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+              </div>
+              <h3 class="feature-title">Thử Nghiệm An Toàn</h3>
+              <p class="feature-description">
+                Thử nghiệm mà không giới hạn, không rủi ro. Đặt lại và bắt đầu
+                lại bất cứ lúc nào.
+              </p>
+            </div>
+
+            <!-- feature card 4 -->
+            <div class="feature-card">
+              <div class="feature-icon gradient-sky" aria-hidden="true">
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  role="img"
+                  aria-label="Clock icon"
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <h3 class="feature-title">Tự Học Linh Hoạt</h3>
+              <p class="feature-description">
+                Học theo cách của bạn. Các mô phỏng thích ứng với sự tò mò của
+                bạn.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- educational value -->
+      <section id="about" class="educational-value">
+        <div class="container-narrow">
+          <div class="content-center">
+            <h2 class="section-title">Học Thật Dễ Dàng</h2>
+
+            <div class="content-text">
+              <p>
+                Sách giáo khoa truyền thống cho bạn thấy điều gì xảy ra. Mô
+                phỏng giúp bạn hiểu vì sao điều đó xảy ra. Khi có thể chủ động
+                thay đổi các biến số và quan sát kết quả ngay lập tức, kiến thức
+                không còn trừu tượng mà trở nên trực quan và dễ nắm bắt.
+              </p>
+              <p>
+                Dù bạn là học sinh, sinh viên, giáo viên hay đơn giản là người
+                tò mò về cách thế giới vận hành, mô phỏng mang lại mức độ thấu
+                hiểu mà các hình ảnh tĩnh không thể đạt được.
+              </p>
+              <p>
+                Hãy tưởng tượng bạn có thể điều chỉnh lực hấp dẫn, thay đổi khối
+                lượng hoặc tốc độ, và ngay lập tức thấy tác động của những thay
+                đổi đó. Việc học trở nên chủ động - bạn không chỉ tiếp thu kiến
+                thức mà còn khám phá và phát hiện ra nó.
+              </p>
+            </div>
+
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-number">50+</div>
+                <div class="stat-label">Mô Phỏng</div>
+              </div>
+              <div class="stat">
+                <div class="stat-number">$0</div>
+                <div class="stat-label">Cost</div>
+              </div>
+              <div class="stat">
+                <div class="stat-number">∞</div>
+                <div class="stat-label">Trải Nghiệm</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- simulations galleries -->
+      <section id="simulations" class="simulations">
+        <div class="container">
+          <div class="section-header">
+            <h2 class="section-title">Bắt đầu khám phá</h2>
+            <p class="section-description">
+              Chọn một mô phỏng để bắt đầu hành trình học tập của bạn
+            </p>
+          </div>
+
+          <!-- filters -->
+          <div class="filters-container">
+            <div class="search-bar">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Tìm kiếm mô phỏng..."
+                aria-label="Search simulations"
+              />
+            </div>
+
+            <!-- filter buttons -->
+            <div
+              class="filter-buttons"
+              role="group"
+              aria-label="Filter simulations"
+            >
+              <div class="filter-group">
+                <label id="grade-label">Lớp: </label>
+                <div role="group" aria-labelledby="grade-label">
+                  <button
+                    class="filter-btn active"
+                    data-grade="all"
+                    aria-pressed="true"
+                  >
+                    Tất Cả
+                  </button>
+                  <button
+                    class="filter-btn"
+                    data-grade="Lớp 10"
+                    aria-pressed="false"
+                  >
+                    Lớp 10
+                  </button>
+                  <button
+                    class="filter-btn"
+                    data-grade="Lớp 11"
+                    aria-pressed="false"
+                  >
+                    Lớp 11
+                  </button>
+                  <button
+                    class="filter-btn"
+                    data-grade="Lớp 12"
+                    aria-pressed="false"
+                  >
+                    Lớp 12
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- simulations grid -->
+          <div class="simulations-grid" id="simulationsGrid"></div>
+        </div>
+      </section>
+
+      <!-- call to action -->
+      <section class="cta">
+        <div class="container-narrow">
+          <div class="content-center">
+            <h2 class="cta-title">Sẵn sàng để bắt đầu khám phá?</h2>
+            <p class="cta-description">
+              Duyệt qua bộ sưu tập mô phỏng và bắt đầu hành trình học tập của
+              bạn ngay hôm nay.
+            </p>
+            <a href="#simulations" class="btn-primary" role="button"
+              >Duyệt qua tất cả các mô phỏng</a
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- footer -->
+    <footer id="contact" class="footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-column">
+            <div class="logo">
+              <div class="logo-icon">
+                <div class="logo-circle"></div>
+              </div>
+              <span class="logo-text">PhySim</span>
+            </div>
+            <p class="footer-tagline">Sinh động và trực quan</p>
+          </div>
+
+          <div class="footer-column">
+            <h3 class="footer-heading">Khám phá</h3>
+            <ul class="footer-links">
+              <li><a href="#simulations">Mô phỏng</a></li>
+              <li><a href="#about">Giới thiệu</a></li>
+              <li><a href="#contact">Liên hệ</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-column">
+            <h3 class="footer-heading">Thông tin liên hệ</h3>
+            <p class="footer-text">Được xây dựng cho học sinh và giáo viên</p>
+            <a href="mailto:hoangguitar12452@gmail.com" class="footer-email"
+              >hoangguitar12452@gmail.com</a
+            >
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <p>©2025 THPT Chu Văn An</p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

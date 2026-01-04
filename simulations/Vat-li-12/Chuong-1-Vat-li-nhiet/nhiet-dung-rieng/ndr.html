@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PhySim - nhiệt dung riêng của chất</title>
+    <!-- Import font Inter & JetBrains Mono -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --danger: #ef4444;
+        --success: #22c55e;
+        --bg: #f1f5f9;
+        --surface: #ffffff;
+        --text-main: #0f172a;
+        --text-sub: #64748b;
+        --border: #e2e8f0;
+        --lcd-bg: #0f172a;
+        --lcd-text: #10b981;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg);
+        margin: 0;
+        padding: 20px;
+        color: var(--text-main);
+        line-height: 1.5;
+        font-size: 16px;
+      }
+
+      h1 {
+        color: var(--text-main);
+        font-weight: 800;
+        text-align: center;
+        font-size: 2rem;
+        margin-bottom: 30px;
+        letter-spacing: -0.025em;
+      }
+
+      /* --- LAYOUT TỐI ƯU --- */
+      .main-container {
+        display: grid;
+        grid-template-columns: 1fr 420px;
+        gap: 30px;
+        max-width: 1800px;
+        width: 95%;
+        margin: 0 auto;
+      }
+
+      @media (max-width: 1100px) {
+        .main-container {
+          grid-template-columns: 1fr;
+          max-width: 800px;
+        }
+      }
+
+      .left-column {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        min-width: 0;
+      }
+
+      .canvas-container {
+        background: var(--surface);
+        padding: 20px;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+      }
+
+      canvas {
+        border-radius: 8px;
+        width: 100%;
+        height: auto;
+        background-color: #fff;
+        display: block;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      /* --- CONTROL PANEL --- */
+      .controls-panel {
+        background: var(--surface);
+        padding: 24px;
+        border-radius: 20px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        height: fit-content;
+        position: sticky;
+        top: 20px;
+      }
+
+      .panel-section {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border);
+      }
+      .panel-section:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+
+      .section-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--text-sub);
+        letter-spacing: 0.05em;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* Inputs */
+      select {
+        width: 100%;
+        padding: 12px 16px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        font-size: 1rem;
+        background: #fff;
+        color: var(--text-main);
+        cursor: pointer;
+        outline: none;
+        transition: border 0.2s, box-shadow 0.2s;
+      }
+      select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      .control-row {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .label-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-main);
+      }
+      .value-badge {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.9rem;
+        background: #eff6ff;
+        color: var(--primary);
+        padding: 4px 10px;
+        border-radius: 6px;
+        min-width: 80px;
+        text-align: center;
+        font-weight: 700;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        background: transparent;
+        cursor: pointer;
+        height: 30px;
+      }
+      input[type="range"]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 22px;
+        width: 22px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid var(--primary);
+        margin-top: -7px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.1s;
+      }
+      input[type="range"]:hover::-webkit-slider-thumb {
+        transform: scale(1.15);
+        background: var(--primary);
+      }
+
+      /* Monitor */
+      .monitor-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        background: var(--lcd-bg);
+        padding: 16px;
+        border-radius: 16px;
+        border: 1px solid #334155;
+        box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+      }
+      .monitor-cell {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 10px 14px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .monitor-label {
+        font-size: 0.7rem;
+        color: #94a3b8;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+      }
+      .monitor-value {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 1.2rem;
+        color: var(--lcd-text);
+        font-weight: 500;
+        text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+      }
+
+      /* Buttons */
+      .btn-row {
+        display: flex;
+        gap: 16px;
+        margin-top: 8px;
+      }
+      .btn {
+        flex: 1;
+        padding: 16px;
+        border: none;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        transition: all 0.2s;
+        color: white;
+        letter-spacing: 0.01em;
+      }
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+      }
+      .btn-primary {
+        background: var(--success);
+      }
+      .btn-primary:hover {
+        background: #16a34a;
+      }
+      .btn-danger {
+        background: var(--danger);
+      }
+      .btn-danger:hover {
+        background: #dc2626;
+      }
+      .btn-secondary {
+        background: #fff;
+        color: var(--text-main);
+        border: 1px solid var(--border);
+      }
+      .btn-secondary:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+      }
+
+      /* Tables */
+      .data-table-section {
+        width: 95%;
+        max-width: 1800px;
+        margin: 30px auto;
+      }
+      .data-table-container {
+        background: var(--surface);
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 1rem;
+      }
+      th {
+        background: #f8fafc;
+        color: var(--text-sub);
+        font-weight: 700;
+        padding: 16px;
+        text-align: center;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      td {
+        padding: 16px;
+        border-bottom: 1px solid var(--border);
+        text-align: center;
+        color: var(--text-main);
+        font-variant-numeric: tabular-nums;
+      }
+      tr:hover td {
+        background-color: #f8fafc;
+      }
+      .highlight {
+        color: var(--primary);
+        font-weight: 700;
+        background: #eff6ff;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+      .note {
+        font-size: 0.95rem;
+        color: var(--text-sub);
+        margin-top: 10px;
+        text-align: center;
+        font-style: italic;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Thí Nghiệm: Đo Nhiệt Dung Riêng</h1>
+
+    <div class="main-container">
+      <!-- Cột trái -->
+      <div class="left-column">
+        <div class="canvas-container">
+          <canvas id="simCanvas" width="600" height="400"></canvas>
+        </div>
+        <div class="canvas-container">
+          <canvas id="graphCanvas" width="600" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Cột phải -->
+      <div class="controls-panel">
+        <div class="panel-section">
+          <div class="section-title">
+            <i class="fas fa-sliders-h"></i> Thiết lập thí nghiệm
+          </div>
+
+          <div class="control-row">
+            <select id="materialSelect">
+              <option value="water">💧 Nước (Lỏng)</option>
+              <option value="copper">🧱 Đồng (Rắn)</option>
+              <option value="aluminum">⚙️ Nhôm (Rắn)</option>
+            </select>
+          </div>
+
+          <div class="control-row">
+            <div class="label-row">
+              <span
+                ><i
+                  class="fas fa-weight-hanging"
+                  style="width: 20px; text-align: center"
+                ></i>
+                Khối lượng (m)</span
+              >
+              <span class="value-badge" id="val-mass">0.20 kg</span>
+            </div>
+            <input
+              type="range"
+              id="mass"
+              min="0.1"
+              max="1.0"
+              step="0.05"
+              value="0.2"
+            />
+          </div>
+
+          <div class="control-row">
+            <div class="label-row">
+              <span
+                ><i
+                  class="fas fa-bolt"
+                  style="width: 20px; text-align: center"
+                ></i>
+                Hiệu điện thế (U)</span
+              >
+              <span class="value-badge" id="val-voltage">12.0 V</span>
+            </div>
+            <input
+              type="range"
+              id="voltage"
+              min="0"
+              max="24"
+              step="0.5"
+              value="12"
+            />
+          </div>
+
+          <div class="control-row">
+            <div class="label-row">
+              <span
+                ><i
+                  class="fas fa-wave-square"
+                  style="width: 20px; text-align: center"
+                ></i>
+                Điện trở (R)</span
+              >
+              <span class="value-badge" id="val-resistance">5.0 &Omega;</span>
+            </div>
+            <input
+              type="range"
+              id="resistance"
+              min="1"
+              max="20"
+              step="0.5"
+              value="5"
+            />
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-title">
+            <i class="fas fa-desktop"></i> Thông số đo đạc
+          </div>
+          <div class="monitor-grid">
+            <div class="monitor-cell">
+              <span class="monitor-label">Thời gian (t)</span>
+              <span class="monitor-value" id="disp-time">0.0 s</span>
+            </div>
+            <div class="monitor-cell">
+              <span class="monitor-label">Nhiệt độ (T)</span>
+              <span class="monitor-value" style="color: #f87171" id="disp-temp"
+                >25.00 &deg;C</span
+              >
+            </div>
+            <div class="monitor-cell">
+              <span class="monitor-label">Dòng điện (I)</span>
+              <span class="monitor-value" id="disp-ampe">0.00 A</span>
+            </div>
+            <div class="monitor-cell">
+              <span class="monitor-label">Công suất (P)</span>
+              <span class="monitor-value" id="disp-power">0 W</span>
+            </div>
+            <div
+              class="monitor-cell"
+              style="
+                grid-column: span 2;
+                border: 1px solid rgba(16, 185, 129, 0.3);
+                background: rgba(16, 185, 129, 0.1);
+              "
+            >
+              <span class="monitor-label" style="color: #34d399"
+                >Năng lượng cung cấp (Q)</span
+              >
+              <span
+                class="monitor-value"
+                style="color: #34d399"
+                id="disp-energy"
+                >0 J</span
+              >
+            </div>
+            <span id="disp-volt" style="display: none"></span>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button id="btnToggle" class="btn btn-primary" onclick="toggleSim()">
+            <i class="fas fa-play"></i> Bắt đầu
+          </button>
+          <button id="btnReset" class="btn btn-secondary" onclick="resetSim()">
+            <i class="fas fa-redo"></i> Reset
+          </button>
+        </div>
+
+        <p class="note">
+          <i class="fas fa-info-circle"></i> Chú ý: Nhiệt dung riêng nhỏ làm vật
+          nóng nhanh.
+        </p>
+      </div>
+    </div>
+
+    <!-- Bảng kết quả -->
+    <div class="data-table-section">
+      <div class="data-table-container">
+        <h3>
+          <i class="fas fa-clipboard-list" style="margin-right: 8px"></i> Bảng
+          Ghi Kết Quả Thí Nghiệm
+        </h3>
+        <table id="resultTable">
+          <thead>
+            <tr>
+              <th>Lần đo</th>
+              <th>Vật liệu</th>
+              <th>Khối lượng</th>
+              <th>Nhiệt lượng Q (J)</th>
+              <th>&Delta;t (&deg;C)</th>
+              <th>Kết quả c (J/kg.K)</th>
+            </tr>
+          </thead>
+          <tbody id="resultTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      const MATERIALS = {
+        water: {
+          name: "Nước",
+          c: 4200,
+          color: "rgba(52, 152, 219, 0.6)",
+          type: "liquid",
+        },
+        copper: { name: "Đồng", c: 380, color: "#d35400", type: "solid" },
+        aluminum: { name: "Nhôm", c: 880, color: "#bdc3c7", type: "solid" },
+      };
+
+      let state = {
+        material: "water",
+        mass: 0.2,
+        voltage: 12,
+        resistance: 5,
+        current: 0,
+        power: 0,
+        temp: 25.0,
+        startTemp: 25.0,
+        time: 0,
+        energy: 0,
+        running: false,
+        history: [],
+        measureCount: 0,
+      };
+
+      const ui = {
+        mass: document.getElementById("mass"),
+        valMass: document.getElementById("val-mass"),
+        voltage: document.getElementById("voltage"),
+        valVolt: document.getElementById("val-voltage"),
+        resistance: document.getElementById("resistance"),
+        valRes: document.getElementById("val-resistance"),
+        mat: document.getElementById("materialSelect"),
+        time: document.getElementById("disp-time"),
+        temp: document.getElementById("disp-temp"),
+        ampe: document.getElementById("disp-ampe"),
+        power: document.getElementById("disp-power"),
+        energy: document.getElementById("disp-energy"),
+        btn: document.getElementById("btnToggle"),
+        table: document.getElementById("resultTableBody"),
+      };
+
+      const canvas = document.getElementById("simCanvas");
+      const ctx = canvas.getContext("2d");
+      const gCanvas = document.getElementById("graphCanvas");
+      const gCtx = gCanvas.getContext("2d");
+
+      ui.mass.oninput = function () {
+        if (!state.running) {
+          state.mass = parseFloat(this.value);
+          ui.valMass.innerText = state.mass.toFixed(2) + " kg";
+          draw();
+        }
+      };
+      ui.voltage.oninput = function () {
+        state.voltage = parseFloat(this.value);
+        ui.valVolt.innerText = state.voltage.toFixed(1) + " V";
+        calc();
+        if (!state.running) draw();
+      };
+      ui.resistance.oninput = function () {
+        state.resistance = parseFloat(this.value);
+        ui.valRes.innerText = state.resistance.toFixed(1) + " \u03A9";
+        calc();
+        if (!state.running) draw();
+      };
+      ui.mat.onchange = function () {
+        resetSim();
+        state.material = this.value;
+        draw();
+      };
+
+      function calc() {
+        state.current = state.voltage / state.resistance;
+        state.power = state.voltage * state.current;
+      }
+
+      let animId;
+      function loop() {
+        if (!state.running) return;
+        calc();
+        let dt = 0.05;
+        state.energy += state.power * dt;
+        let c = MATERIALS[state.material].c;
+        state.temp += (state.power * dt) / (state.mass * c);
+        state.time += dt;
+
+        let maxT = state.material === "water" ? 100 : 200;
+        if (state.temp >= maxT) {
+          state.temp = maxT;
+          stopSim();
+          alert("Đạt nhiệt độ giới hạn!");
+        }
+
+        if (
+          state.history.length === 0 ||
+          state.time - state.history[state.history.length - 1].t >= 0.5
+        ) {
+          state.history.push({ t: state.time, T: state.temp });
+        }
+        updateDisp();
+        draw();
+        drawGraph();
+        animId = requestAnimationFrame(loop);
+      }
+
+      function toggleSim() {
+        if (state.running) stopSim();
+        else {
+          state.running = true;
+          if (state.time === 0) state.startTemp = state.temp;
+          ui.btn.innerHTML = '<i class="fas fa-stop"></i> Kết thúc';
+          ui.btn.classList.add("stop-mode");
+          ui.mass.disabled = true;
+          ui.mat.disabled = true;
+          loop();
+        }
+      }
+
+      function stopSim() {
+        state.running = false;
+        cancelAnimationFrame(animId);
+        ui.btn.innerHTML = '<i class="fas fa-play"></i> Bắt đầu';
+        ui.btn.classList.remove("stop-mode");
+        ui.mass.disabled = false;
+        ui.mat.disabled = false;
+        addRecord();
+      }
+
+      function resetSim() {
+        stopSim();
+        state.time = 0;
+        state.energy = 0;
+        state.temp = 25.0;
+        state.history = [];
+        state.mass = parseFloat(ui.mass.value);
+        ui.valMass.innerText = state.mass.toFixed(2) + " kg";
+        updateDisp();
+        draw();
+        drawGraph();
+        state.measureCount = 0;
+        ui.table.innerHTML = "";
+      }
+
+      function updateDisp() {
+        ui.time.innerText = state.time.toFixed(1) + " s";
+        ui.temp.innerText = state.temp.toFixed(2) + " °C";
+        ui.ampe.innerText = state.current.toFixed(2) + " A";
+        ui.power.innerText = state.power.toFixed(0) + " W";
+        ui.energy.innerText = Math.round(state.energy) + " J";
+      }
+
+      function addRecord() {
+        if (state.time < 1) return;
+        state.measureCount++;
+        let dT = state.temp - state.startTemp;
+        let cCalc = dT > 0 ? state.energy / (state.mass * dT) : 0;
+        let row = `<tr><td>#${state.measureCount}</td>
+                <td style="font-weight:600; color:var(--primary)">${
+                  MATERIALS[state.material].name
+                }</td>
+                <td>${state.mass.toFixed(2)}</td><td>${Math.round(
+          state.energy
+        )}</td>
+                <td>${dT.toFixed(1)}</td><td class="highlight">${Math.round(
+          cCalc
+        )}</td></tr>`;
+        ui.table.insertAdjacentHTML("beforeend", row);
+      }
+
+      // --- DRAWING LOGIC (FIXED) ---
+      function draw() {
+        ctx.clearRect(0, 0, 600, 400);
+
+        // Coordinates
+        const mx = 400,
+          my = 200,
+          w = 140,
+          h = 150; // Cup
+        const hx = mx + w / 2; // Heater center X = 470
+        const mat = MATERIALS[state.material];
+
+        // 1. Material (Water/Metal)
+        let fillH = 50 + state.mass * 80;
+        if (fillH > h - 10) fillH = h - 10;
+        ctx.fillStyle = mat.color;
+        if (mat.type === "liquid") {
+          ctx.fillRect(mx + 10, my + h - fillH, w - 20, fillH);
+          if (state.running && state.temp > 80) {
+            ctx.fillStyle = "rgba(255,255,255,0.6)";
+            for (let i = 0; i < 5; i++) {
+              ctx.beginPath();
+              ctx.arc(
+                mx + 20 + Math.random() * (w - 40),
+                my + h - Math.random() * fillH,
+                3,
+                0,
+                6.28
+              );
+              ctx.fill();
+            }
+          }
+        } else {
+          ctx.fillRect(mx + 20, my + h - fillH, w - 40, fillH);
+          ctx.strokeStyle = "#475569";
+          ctx.strokeRect(mx + 20, my + h - fillH, w - 40, fillH);
+        }
+
+        // 2. Cup & Insulation
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#334155";
+        ctx.strokeRect(mx, my, w, h);
+        ctx.lineWidth = 8;
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.strokeRect(mx - 10, my - 5, w + 20, h + 15);
+
+        // 3. Components & Wires
+        const wireColor = "#475569";
+        const wireActive = state.running ? "#ef4444" : "#64748b";
+        ctx.lineWidth = 3;
+
+        // Battery (50, 150)
+        drawBattery(ctx, 50, 150);
+
+        // Switch (120, 50)
+        drawSwitch(ctx, 120, 50, state.running);
+
+        // Ammeter (250, 50)
+        drawMeter(
+          ctx,
+          250,
+          50,
+          "A",
+          state.running ? state.current.toFixed(1) : "0"
+        );
+
+        // Voltmeter (320, 150)
+        drawMeter(
+          ctx,
+          320,
+          150,
+          "V",
+          state.running ? state.voltage.toFixed(1) : "0"
+        );
+
+        // --- WIRING PATHS ---
+        ctx.strokeStyle = wireColor;
+        ctx.beginPath();
+
+        // 3a. Positive Path: Battery(+) -> Switch -> Ammeter -> Heater Top
+        ctx.moveTo(50, 130);
+        ctx.lineTo(50, 50);
+        ctx.lineTo(120, 50); // Bat to Switch
+        ctx.moveTo(180, 50);
+        ctx.lineTo(225, 50); // Switch to Ammeter
+        ctx.moveTo(275, 50);
+        ctx.lineTo(hx, 50);
+        ctx.lineTo(hx, 200); // Ammeter to Heater Top
+
+        // 3b. Negative Path: Heater Bottom -> Battery(-)
+        ctx.moveTo(hx, 320);
+        ctx.lineTo(hx, 350);
+        ctx.lineTo(50, 350);
+        ctx.lineTo(50, 170);
+
+        // 3c. Voltmeter Connections (Parallel)
+        // Top (Positive) junction at x=320, y=50
+        ctx.moveTo(320, 50);
+        ctx.lineTo(320, 125);
+        // Bottom (Negative) junction at x=320, y=350
+        ctx.moveTo(320, 350);
+        ctx.lineTo(320, 175);
+
+        ctx.stroke();
+
+        // 4. Heater Coil
+        ctx.strokeStyle = wireActive;
+        ctx.beginPath();
+        ctx.moveTo(hx, 200);
+        // Draw zig-zag coil
+        for (let y = 200; y < 320; y += 10) {
+          ctx.lineTo(hx + (y % 20 == 0 ? 10 : -10), y + 5);
+        }
+        ctx.lineTo(hx, 320);
+        ctx.stroke();
+
+        // 5. Thermometer
+        let tx = mx + w + 15;
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 1;
+        ctx.fillRect(tx, 150, 10, 150);
+        ctx.strokeRect(tx, 150, 10, 150); // Body
+
+        // Mercury
+        ctx.fillStyle = "#ef4444";
+        let th = (state.temp / 200) * 140; // Scale height
+        ctx.fillRect(tx + 2, 300 - th, 6, th); // Column
+        ctx.beginPath();
+        ctx.arc(tx + 5, 300, 8, 0, 6.28);
+        ctx.fill(); // Bulb
+
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "12px Inter";
+        ctx.fillText(state.temp.toFixed(1) + "°", tx + 15, 300 - th);
+      }
+
+      // Helper Drawing Functions
+      function drawBattery(ctx, x, y) {
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#0f172a";
+        ctx.beginPath();
+        ctx.moveTo(x - 15, y - 10);
+        ctx.lineTo(x + 15, y - 10); // Long (+)
+        ctx.moveTo(x - 8, y + 10);
+        ctx.lineTo(x + 8, y + 10); // Short (-)
+        ctx.moveTo(x, y - 10);
+        ctx.lineTo(x, y - 20); // Wire up
+        ctx.moveTo(x, y + 10);
+        ctx.lineTo(x, y + 20); // Wire down
+        ctx.stroke();
+        ctx.font = "bold 14px sans-serif";
+        ctx.fillStyle = "#000";
+        ctx.fillText("+", x - 25, y - 5);
+        ctx.fillText("-", x - 25, y + 15);
+      }
+
+      function drawSwitch(ctx, x, y, closed) {
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, 6.28);
+        ctx.fill(); // Left dot
+        ctx.beginPath();
+        ctx.arc(x + 60, y, 3, 0, 6.28);
+        ctx.fill(); // Right dot
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#000";
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        if (closed) ctx.lineTo(x + 60, y);
+        else ctx.lineTo(x + 55, y - 25);
+        ctx.stroke();
+        ctx.fillText("K", x + 25, y - 10);
+      }
+
+      function drawMeter(ctx, x, y, label, val) {
+        ctx.fillStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#334155";
+        ctx.beginPath();
+        ctx.arc(x, y, 25, 0, 6.28);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 14px Inter";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, x, y - 6);
+        ctx.fillStyle = "#ef4444";
+        ctx.font = "11px Inter";
+        ctx.fillText(val, x, y + 8);
+      }
+
+      function drawGraph() {
+        gCtx.clearRect(0, 0, 600, 200);
+        const p = { t: 20, r: 30, b: 30, l: 40 };
+        const w = 600 - p.l - p.r,
+          h = 200 - p.t - p.b;
+        let maxT = 60;
+        if (state.time > 60) maxT = state.time;
+
+        gCtx.beginPath();
+        gCtx.strokeStyle = "#e2e8f0";
+        gCtx.lineWidth = 1;
+        for (let i = 0; i <= 10; i++) {
+          let x = p.l + (w / 10) * i;
+          gCtx.moveTo(x, p.t);
+          gCtx.lineTo(x, p.t + h);
+        }
+        gCtx.stroke();
+
+        gCtx.beginPath();
+        gCtx.strokeStyle = "#64748b";
+        gCtx.moveTo(p.l, p.t);
+        gCtx.lineTo(p.l, p.t + h);
+        gCtx.lineTo(p.l + w, p.t + h);
+        gCtx.stroke();
+
+        if (state.history.length > 1) {
+          gCtx.strokeStyle = "#2563eb";
+          gCtx.lineWidth = 2;
+          gCtx.beginPath();
+          state.history.forEach((pt, i) => {
+            let x = p.l + (pt.t / maxT) * w;
+            let y = p.t + h - (pt.T / 200) * h;
+            if (i === 0) gCtx.moveTo(x, y);
+            else gCtx.lineTo(x, y);
+          });
+          gCtx.stroke();
+        }
+
+        gCtx.fillStyle = "#64748b";
+        gCtx.font = "12px Inter";
+        gCtx.fillText("t(s)", 560, 190);
+        gCtx.fillText("T(°C)", 5, 20);
+
+        if (graphMouse.active && state.history.length > 0) {
+          const mt = ((graphMouse.x - p.l) / w) * maxT;
+          let close = state.history[0],
+            minD = Math.abs(mt - close.t);
+          for (let pt of state.history) {
+            let d = Math.abs(mt - pt.t);
+            if (d < minD) {
+              minD = d;
+              close = pt;
+            }
+          }
+
+          let cx = p.l + (close.t / maxT) * w;
+          let cy = p.t + h - (close.T / 200) * h;
+          if (cx >= p.l && cx <= p.l + w) {
+            gCtx.fillStyle = "#ef4444";
+            gCtx.beginPath();
+            gCtx.arc(cx, cy, 4, 0, 6.28);
+            gCtx.fill();
+            let txt = `${close.t.toFixed(1)}s, ${close.T.toFixed(1)}°C`;
+            let tw = gCtx.measureText(txt).width;
+            gCtx.fillStyle = "rgba(15,23,42,0.8)";
+            gCtx.fillRect(cx + 10, cy - 25, tw + 10, 20);
+            gCtx.fillStyle = "#fff";
+            gCtx.fillText(txt, cx + 15, cy - 11);
+          }
+        }
+      }
+
+      let graphMouse = { x: 0, y: 0, active: false };
+      gCanvas.addEventListener("mousemove", (e) => {
+        const r = gCanvas.getBoundingClientRect();
+        graphMouse.x = (e.clientX - r.left) * (gCanvas.width / r.width);
+        graphMouse.y = (e.clientY - r.top) * (gCanvas.height / r.height);
+        graphMouse.active = true;
+        if (!state.running) drawGraph();
+      });
+      gCanvas.addEventListener("mouseleave", () => {
+        graphMouse.active = false;
+        if (!state.running) drawGraph();
+      });
+
+      draw();
+      drawGraph();
+    </script>
+  </body>
+</html>

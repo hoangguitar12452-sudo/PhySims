@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>PhySim - mô phỏng con lắc đơn phương ngang</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Inter", "sans-serif"] },
+            colors: {
+              lab: {
+                bg: "#f8fafc",
+                panel: "#ffffff",
+                border: "#e2e8f0",
+                primary: "#3b82f6",
+                text: "#334155",
+              },
+            },
+            screens: {
+              xs: "475px",
+              landscape: {
+                raw: "(orientation: landscape) and (max-height: 600px)",
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      canvas {
+        touch-action: none;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        background: transparent;
+        height: 32px;
+      }
+      input[type="range"]:focus {
+        outline: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 28px;
+        width: 28px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 3px solid #3b82f6;
+        cursor: pointer;
+        margin-top: -12px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        transition: transform 0.1s;
+      }
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+        background: #f0f9ff;
+      }
+      input[type="range"]::-webkit-slider-thumb:active {
+        transform: scale(1.25);
+        background: #eff6ff;
+      }
+
+      input[type="range"]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 6px;
+        cursor: pointer;
+        background: #cbd5e1;
+        border-radius: 3px;
+      }
+
+      .toggle-checkbox:checked {
+        right: 0;
+        border-color: #3b82f6;
+      }
+      .toggle-checkbox:checked + .toggle-label {
+        background-color: #3b82f6;
+      }
+
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      .touch-target {
+        min-height: 48px;
+        min-width: 48px;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-lab-bg text-lab-text h-[100dvh] flex flex-col overflow-hidden text-sm lg:text-lg font-sans"
+  >
+    <!-- Header -->
+    <header
+      class="bg-white border-b border-lab-border h-14 lg:h-20 flex items-center justify-between px-4 lg:px-8 shrink-0 z-30 shadow-sm relative"
+    >
+      <div class="flex items-center gap-3 lg:gap-5">
+        <div
+          class="w-8 h-8 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg lg:rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0"
+        >
+          <svg
+            class="w-5 h-5 lg:w-7 lg:h-7"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
+            />
+          </svg>
+        </div>
+        <div class="overflow-hidden">
+          <h1
+            class="font-bold text-base lg:text-2xl text-slate-800 tracking-tight leading-none truncate"
+          >
+            PhySim
+          </h1>
+          <p
+            class="text-[10px] lg:text-sm text-slate-500 font-medium uppercase tracking-wide truncate hidden xs:block mt-0.5 lg:mt-1"
+          >
+            Mô phỏng Con lắc Lò xo
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 lg:gap-5">
+        <div
+          class="hidden md:flex items-center gap-6 lg:gap-8 bg-slate-50 border border-slate-200 rounded-full px-5 lg:px-8 py-2 lg:py-3 shadow-inner"
+        >
+          <span
+            class="font-mono text-xs lg:text-lg text-slate-600 w-20 lg:w-28 text-right font-medium"
+            id="headerTime"
+            >t = 0.00s</span
+          >
+          <div class="w-px h-3 lg:h-6 bg-slate-300"></div>
+          <span
+            class="font-mono text-blue-600 font-bold text-xs lg:text-lg w-24 lg:w-32 text-right"
+            id="headerEnergy"
+            >E = 0.00J</span
+          >
+        </div>
+
+        <button
+          id="resetBtn"
+          class="touch-target flex items-center justify-center gap-2 px-3 lg:px-6 py-1.5 lg:py-3 text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg lg:rounded-2xl transition-colors font-medium text-xs lg:text-base shadow-sm hover:shadow-md active:scale-95 active:bg-slate-100"
+        >
+          <svg
+            class="w-5 h-5 lg:w-6 lg:h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          <span class="hidden xs:inline">Đặt lại</span>
+        </button>
+        <button
+          id="playPauseBtn"
+          class="touch-target flex items-center justify-center gap-2 px-4 lg:px-8 py-1.5 lg:py-3 bg-lab-primary hover:bg-blue-600 text-white rounded-lg lg:rounded-2xl shadow-md shadow-blue-500/20 hover:shadow-blue-500/40 transition-all active:scale-95 active:bg-blue-700 font-bold min-w-[44px] lg:min-w-[140px] text-xs lg:text-base"
+        >
+          <svg
+            id="playIcon"
+            class="w-5 h-5 lg:w-6 lg:h-6"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path d="M8 5v14l11-7z" />
+          </svg>
+          <svg
+            id="pauseIcon"
+            class="w-5 h-5 lg:w-6 lg:h-6 hidden"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+          </svg>
+          <span id="playText" class="hidden lg:inline">Bắt đầu</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Layout -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+      <!-- Left Pane: Visualization & Graph -->
+      <div
+        class="flex-1 flex flex-col bg-[#f1f5f9] relative p-2 lg:p-8 gap-2 lg:gap-8 overflow-hidden h-full z-0"
+        id="vizContainer"
+      >
+        <!-- Simulation Viewport -->
+        <div
+          class="flex-1 min-h-0 bg-white rounded-xl lg:rounded-[2rem] shadow-sm border border-lab-border relative overflow-hidden group touch-none z-0"
+        >
+          <canvas id="simCanvas" class="block w-full h-full"></canvas>
+
+          <!-- HUD: Chuyển lên GÓC TRÊN BÊN TRÁI -->
+          <div
+            id="hudPanel"
+            class="absolute top-2 left-2 lg:top-6 lg:left-6 bg-white/90 backdrop-blur-md rounded-lg lg:rounded-xl border border-slate-200 shadow-sm pointer-events-auto select-none transition-all duration-200 max-w-[180px] lg:max-w-[300px] flex flex-col overflow-hidden"
+          >
+            <!-- Header HUD với nút toggle -->
+            <div
+              id="hudHeader"
+              class="flex justify-between items-center px-3 lg:px-5 py-2 lg:py-3 border-b border-slate-100 cursor-pointer bg-slate-50/50 hover:bg-slate-100/80 transition-colors"
+            >
+              <span
+                class="text-[9px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-wider"
+                >Thông số</span
+              >
+              <button
+                class="text-slate-400 hover:text-slate-600 transition-colors focus:outline-none p-1 -mr-2"
+              >
+                <!-- Icon Mở (Mũi tên xuống) -->
+                <svg
+                  id="hudIconOpen"
+                  class="w-3 h-3 lg:w-4 lg:h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"
+                  ></path>
+                </svg>
+                <!-- Icon Đóng (Mũi tên lên) -->
+                <svg
+                  id="hudIconClosed"
+                  class="w-3 h-3 lg:w-4 lg:h-4 hidden"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 15l7-7 7 7"
+                  ></path>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Content HUD -->
+            <div
+              id="hudContent"
+              class="px-3 lg:px-5 py-2 lg:py-3 grid grid-cols-2 gap-x-2 lg:gap-x-6 gap-y-0.5 lg:gap-y-2 font-mono text-[10px] lg:text-base text-slate-700 bg-white/50"
+            >
+              <span class="text-slate-500 font-medium">x:</span>
+              <span id="valX" class="text-blue-600 font-bold text-right"
+                >-</span
+              >
+              <span class="text-slate-500 font-medium">v:</span>
+              <span id="valV" class="text-green-600 font-bold text-right"
+                >-</span
+              >
+              <span class="text-slate-500 md:hidden">t:</span>
+              <span
+                id="hudTime"
+                class="text-slate-800 font-bold text-right md:hidden"
+                >-</span
+              >
+            </div>
+          </div>
+
+          <!-- Drag Hint: Chuyển xuống dưới để tránh HUD -->
+          <div
+            id="dragHint"
+            class="absolute bottom-4 lg:bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 lg:gap-4 bg-slate-800/80 text-white text-[10px] lg:text-base px-4 lg:px-8 py-2 lg:py-4 rounded-full pointer-events-none shadow-xl transition-opacity duration-500 backdrop-blur-sm whitespace-nowrap"
+          >
+            <svg
+              class="w-3 h-3 lg:w-6 lg:h-6 animate-bounce"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"
+              />
+            </svg>
+            <span class="font-medium">Kéo vật để bắt đầu</span>
+          </div>
+        </div>
+
+        <!-- Graph Container -->
+        <div
+          id="graphContainer"
+          class="shrink-0 h-[22vh] lg:h-[350px] min-h-[110px] bg-white rounded-xl lg:rounded-[1.5rem] shadow-sm border border-lab-border flex flex-col overflow-hidden relative group touch-none transition-all duration-200 z-10"
+        >
+          <div
+            class="px-3 lg:px-6 py-1.5 lg:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0 h-8 lg:h-16"
+          >
+            <h3
+              class="font-bold text-slate-600 text-[10px] lg:text-base uppercase tracking-wide flex items-center gap-2 lg:gap-3"
+            >
+              <svg
+                class="w-3 h-3 lg:w-6 lg:h-6 text-slate-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
+                />
+              </svg>
+              Đồ thị
+            </h3>
+            <div
+              class="flex gap-3 lg:gap-8 text-[10px] lg:text-base font-medium select-none"
+            >
+              <label
+                class="flex items-center gap-1.5 lg:gap-3 cursor-pointer touch-target"
+              >
+                <span
+                  class="w-2 h-2 lg:w-4 lg:h-4 rounded-full bg-blue-500 shadow-sm"
+                ></span>
+                <span class="text-slate-600">Li độ x(t)</span>
+              </label>
+              <label
+                class="flex items-center gap-1.5 lg:gap-3 cursor-pointer group touch-target"
+              >
+                <input
+                  type="checkbox"
+                  id="showVGraph"
+                  class="rounded text-green-500 focus:ring-0 w-3 h-3 lg:w-5 lg:h-5 border-slate-300"
+                />
+                <span
+                  class="w-2 h-2 lg:w-4 lg:h-4 rounded-full bg-green-500 shadow-sm"
+                ></span>
+                <span
+                  class="text-slate-400 group-hover:text-slate-600 transition-colors"
+                  >Vận tốc v(t)</span
+                >
+              </label>
+            </div>
+          </div>
+          <div class="relative flex-1 w-full h-full cursor-crosshair min-h-0">
+            <canvas id="graphCanvas" class="block w-full h-full"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Pane: Controls -->
+      <aside
+        class="w-full lg:w-[450px] bg-white border-t lg:border-t-0 lg:border-l border-lab-border flex flex-col shrink-0 z-20 shadow-[0_-4px_10px_-2px_rgba(0,0,0,0.05)] lg:shadow-2xl h-auto max-h-[45vh] lg:max-h-none lg:h-auto"
+      >
+        <div
+          class="flex-1 overflow-y-auto p-4 lg:p-10 space-y-6 lg:space-y-12 pb-8"
+        >
+          <!-- Parameters -->
+          <div class="space-y-4 lg:space-y-8">
+            <div
+              class="flex items-center gap-2 lg:gap-4 pb-2 lg:pb-4 border-b border-slate-100 sticky top-0 bg-white z-10"
+            >
+              <div class="p-1 lg:p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <svg
+                  class="w-3.5 h-3.5 lg:w-6 lg:h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                  />
+                </svg>
+              </div>
+              <h2
+                class="font-bold text-slate-700 text-xs lg:text-lg uppercase tracking-wide"
+              >
+                Thiết lập hệ thống
+              </h2>
+            </div>
+
+            <div
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4 lg:gap-8"
+            >
+              <!-- Mass -->
+              <div
+                class="bg-slate-50 p-3 lg:p-6 rounded-lg lg:rounded-2xl border border-slate-100 hover:border-blue-200 transition-colors shadow-sm"
+              >
+                <div class="flex justify-between mb-3 lg:mb-5">
+                  <label
+                    class="text-[10px] lg:text-sm font-bold text-slate-500 uppercase tracking-wide"
+                    >Khối lượng</label
+                  >
+                  <span
+                    class="font-mono text-xs lg:text-lg font-bold text-blue-600 bg-white px-2 lg:px-3 py-1 rounded-lg border border-slate-100"
+                    id="displayM"
+                    >1.0 kg</span
+                  >
+                </div>
+                <input
+                  type="range"
+                  id="inputM"
+                  min="0.1"
+                  max="5.0"
+                  step="0.1"
+                  value="1.0"
+                />
+              </div>
+
+              <!-- Spring K -->
+              <div
+                class="bg-slate-50 p-3 lg:p-6 rounded-lg lg:rounded-2xl border border-slate-100 hover:border-blue-200 transition-colors shadow-sm"
+              >
+                <div class="flex justify-between mb-3 lg:mb-5">
+                  <label
+                    class="text-[10px] lg:text-sm font-bold text-slate-500 uppercase tracking-wide"
+                    >Độ cứng k</label
+                  >
+                  <span
+                    class="font-mono text-xs lg:text-lg font-bold text-blue-600 bg-white px-2 lg:px-3 py-1 rounded-lg border border-slate-100"
+                    id="displayK"
+                    >20 N/m</span
+                  >
+                </div>
+                <input
+                  type="range"
+                  id="inputK"
+                  min="1"
+                  max="100"
+                  step="1"
+                  value="20"
+                />
+              </div>
+
+              <!-- Damping -->
+              <div
+                class="bg-slate-50 p-3 lg:p-6 rounded-lg lg:rounded-2xl border border-slate-100 md:col-span-2 lg:col-span-1 hover:border-blue-200 transition-colors shadow-sm"
+              >
+                <div class="flex justify-between mb-3 lg:mb-5">
+                  <label
+                    class="text-[10px] lg:text-sm font-bold text-slate-500 uppercase tracking-wide"
+                    >Ma sát μ</label
+                  >
+                  <span
+                    class="font-mono text-xs lg:text-lg font-bold text-blue-600 bg-white px-2 lg:px-3 py-1 rounded-lg border border-slate-100"
+                    id="displayDamping"
+                    >0.00</span
+                  >
+                </div>
+                <input
+                  type="range"
+                  id="inputDamping"
+                  min="0.00"
+                  max="0.5"
+                  step="0.01"
+                  value="0.00"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Toggles -->
+          <div class="space-y-3 lg:space-y-5">
+            <label
+              class="flex items-center justify-between cursor-pointer p-3 lg:p-5 hover:bg-slate-50 rounded-xl lg:rounded-2xl border border-transparent hover:border-slate-100 touch-target transition-colors bg-white lg:shadow-sm lg:border-slate-50"
+            >
+              <span class="text-xs lg:text-base font-semibold text-slate-600"
+                >Hiển thị Vectơ Lực/Vận tốc</span
+              >
+              <div
+                class="relative inline-block w-10 lg:w-14 h-5 lg:h-7 align-middle select-none"
+              >
+                <input
+                  type="checkbox"
+                  id="checkVectors"
+                  class="toggle-checkbox absolute block w-5 lg:w-7 h-5 lg:h-7 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"
+                />
+                <label
+                  for="checkVectors"
+                  class="toggle-label block overflow-hidden h-5 lg:h-7 rounded-full bg-slate-300 cursor-pointer"
+                ></label>
+              </div>
+            </label>
+            <label
+              class="flex items-center justify-between cursor-pointer p-3 lg:p-5 hover:bg-slate-50 rounded-xl lg:rounded-2xl border border-transparent hover:border-slate-100 touch-target transition-colors bg-white lg:shadow-sm lg:border-slate-50"
+            >
+              <span class="text-xs lg:text-base font-semibold text-slate-600"
+                >Chuyển động chậm (Slow-mo)</span
+              >
+              <div
+                class="relative inline-block w-10 lg:w-14 h-5 lg:h-7 align-middle select-none"
+              >
+                <input
+                  type="checkbox"
+                  id="checkSlowMo"
+                  class="toggle-checkbox absolute block w-5 lg:w-7 h-5 lg:h-7 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"
+                />
+                <label
+                  for="checkSlowMo"
+                  class="toggle-label block overflow-hidden h-5 lg:h-7 rounded-full bg-slate-300 cursor-pointer"
+                ></label>
+              </div>
+            </label>
+          </div>
+
+          <div class="h-4 lg:hidden"></div>
+        </div>
+      </aside>
+    </main>
+
+    <script>
+      // --- CONSTANTS & SETUP ---
+      const canvas = document.getElementById("simCanvas");
+      const ctx = canvas.getContext("2d");
+      const graphCanvas = document.getElementById("graphCanvas");
+      const graphCtx = graphCanvas.getContext("2d");
+      const vizContainer = document.getElementById("vizContainer");
+
+      let state = {
+        m: 1.0,
+        k: 20,
+        c: 0.0,
+        x: 0,
+        v: 0,
+        a: 0,
+        t: 0,
+        running: false,
+        dragging: false,
+        energy: 0,
+      };
+
+      const config = {
+        scale: 150,
+        floorY: 0,
+        wallX: 60,
+        blockW: 80,
+        blockH: 48,
+        maxHistory: 400,
+      };
+
+      let origin = { x: 0, y: 0 };
+      let history = [];
+      let graphMouse = { x: -1, y: -1, active: false };
+
+      // --- ROBUST RESIZE HANDLING ---
+      function resize() {
+        const dpr = window.devicePixelRatio || 1;
+
+        // 1. Sim Canvas
+        const rect = canvas.parentElement.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+
+        // 2. Graph Canvas
+        const gRect = graphCanvas.parentElement.getBoundingClientRect();
+        graphCanvas.width = Math.floor(gRect.width * dpr);
+        graphCanvas.height = Math.floor(gRect.height * dpr);
+
+        graphCtx.setTransform(1, 0, 0, 1, 0, 0);
+        graphCtx.scale(dpr, dpr);
+
+        // 3. Layout Logic Update
+        const isMobile = rect.width < 600;
+        const isDesktop = rect.width >= 1024; // lg breakpoint
+
+        config.scale = isMobile ? 120 : isDesktop ? 250 : 150;
+        config.wallX = isMobile ? 30 : isDesktop ? 120 : 60;
+        config.blockW = isMobile ? 60 : isDesktop ? 160 : 80;
+        config.blockH = isMobile ? 40 : isDesktop ? 96 : 48;
+
+        const floorRatio = isMobile && rect.width > rect.height ? 0.75 : 0.65;
+        config.floorY = rect.height * floorRatio;
+
+        origin = { x: rect.width / 2, y: config.floorY - config.blockH / 2 };
+
+        if (!state.running) {
+          drawSim();
+          drawGraph();
+        }
+      }
+
+      const resizeObserver = new ResizeObserver(() => {
+        requestAnimationFrame(resize);
+      });
+      resizeObserver.observe(vizContainer);
+      window.addEventListener("resize", resize);
+      window.addEventListener("orientationchange", () =>
+        setTimeout(resize, 100)
+      );
+
+      // --- PHYSICS & LOGIC ---
+      function update(dt) {
+        if (state.dragging) {
+          state.v = 0;
+          state.a = 0;
+          return;
+        }
+        if (!state.running) return;
+
+        const fSpring = -state.k * state.x;
+        const fDamp = -state.c * state.v;
+        state.a = (fSpring + fDamp) / state.m;
+        state.v += state.a * dt;
+        state.x += state.v * dt;
+        state.t += dt;
+
+        const pe = 0.5 * state.k * state.x * state.x;
+        const ke = 0.5 * state.m * state.v * state.v;
+        state.energy = pe + ke;
+
+        if (state.energy < 0.0001 && state.c > 0) {
+          state.running = false;
+          state.x = 0;
+          updateControlsUI();
+        }
+
+        if ((state.t * 60) % 3 < 1) {
+          history.push({ t: state.t, x: state.x, v: state.v });
+          if (history.length > config.maxHistory) history.shift();
+        }
+      }
+
+      // --- DRAWING ---
+      function drawRoundedRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      }
+
+      function drawEnvironment() {
+        const w = canvas.width / (window.devicePixelRatio || 1);
+        const h = canvas.height / (window.devicePixelRatio || 1);
+        ctx.clearRect(0, 0, w, h);
+
+        // Grid
+        ctx.beginPath();
+        ctx.strokeStyle = "#f1f5f9";
+        ctx.lineWidth = 1;
+        const gridSize = 40;
+        const startGridX = origin.x % gridSize;
+        for (let x = startGridX; x < w; x += gridSize) {
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, h);
+        }
+        for (let y = 0; y < h; y += gridSize) {
+          ctx.moveTo(0, y);
+          ctx.lineTo(w, y);
+        }
+        ctx.stroke();
+
+        // Floor
+        ctx.beginPath();
+        ctx.moveTo(0, config.floorY);
+        ctx.lineTo(w, config.floorY);
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = window.innerWidth > 1000 ? 3 : 2;
+        ctx.stroke();
+
+        // Ruler
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = window.innerWidth > 1000 ? "14px Inter" : "10px Inter";
+        ctx.textAlign = "center";
+        for (let i = -80; i <= 80; i += 10) {
+          const xPos = origin.x + (i * config.scale) / 100;
+          if (xPos < config.wallX || xPos > w) continue;
+          const isMajor = i % 10 === 0;
+          const tickH =
+            window.innerWidth > 1000 ? (isMajor ? 12 : 6) : isMajor ? 8 : 4;
+          ctx.fillRect(xPos, config.floorY, 1, tickH);
+          if (isMajor && i % 20 === 0)
+            ctx.fillText(
+              i,
+              xPos,
+              config.floorY + (window.innerWidth > 1000 ? 30 : 24)
+            );
+        }
+
+        // Equilibrium O
+        ctx.beginPath();
+        ctx.setLineDash([6, 4]);
+        ctx.moveTo(origin.x, config.floorY);
+        ctx.lineTo(
+          origin.x,
+          config.floorY - (window.innerWidth > 1000 ? 250 : 180)
+        );
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#64748b";
+        ctx.font =
+          window.innerWidth > 1000 ? "bold 16px Inter" : "bold 12px Inter";
+        ctx.fillText(
+          "O",
+          origin.x - 12,
+          config.floorY - (window.innerWidth > 1000 ? 230 : 160)
+        );
+
+        // Wall
+        const wallW = config.wallX;
+        const grd = ctx.createLinearGradient(0, 0, wallW, 0);
+        grd.addColorStop(0, "#e2e8f0");
+        grd.addColorStop(1, "#f8fafc");
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, wallW, h);
+        ctx.beginPath();
+        ctx.moveTo(wallW, 0);
+        ctx.lineTo(wallW, h);
+        ctx.strokeStyle = "#94a3b8";
+        ctx.stroke();
+      }
+
+      function drawSpring(x1, y1, x2, y2) {
+        const coils = 12;
+        const radius = config.blockH / 4;
+        const dx = x2 - x1;
+        const step = dx / coils;
+
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(0,0,0,0.05)";
+        ctx.lineWidth = window.innerWidth > 1000 ? 6 : 4;
+        const shadowOffset = window.innerWidth > 1000 ? 12 : 8;
+        ctx.moveTo(x1, y1 + radius + shadowOffset);
+        for (let i = 0; i <= coils; i++) {
+          let x = x1 + step * i;
+          let y =
+            i % 2 === 0
+              ? y1 + radius + shadowOffset
+              : y1 - radius + shadowOffset;
+          if (i === 0 || i === coils) y = y1 + shadowOffset;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.strokeStyle = "#475569";
+        ctx.lineWidth = window.innerWidth > 1000 ? 5 : 3;
+        ctx.moveTo(x1, y1);
+        for (let i = 0; i <= coils; i++) {
+          let x = x1 + step * i;
+          let y = i % 2 === 0 ? y1 + radius : y1 - radius;
+          if (i === 0 || i === coils) y = y1;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      function drawBlock(x, y) {
+        const w = config.blockW;
+        const h = config.blockH;
+
+        ctx.fillStyle = "rgba(0,0,0,0.15)";
+        ctx.beginPath();
+        ctx.ellipse(x, y + h / 2 + 4, w / 2 - 4, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const xLeft = x - w / 2;
+        const yTop = y - h / 2;
+        const grd = ctx.createLinearGradient(xLeft, yTop, xLeft, yTop + h);
+        grd.addColorStop(0, "#60a5fa");
+        grd.addColorStop(0.5, "#3b82f6");
+        grd.addColorStop(1, "#2563eb");
+        ctx.fillStyle = grd;
+        drawRoundedRect(
+          ctx,
+          xLeft,
+          yTop,
+          w,
+          h,
+          window.innerWidth > 1000 ? 16 : 8
+        );
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        ctx.beginPath();
+        ctx.roundRect(xLeft + 2, yTop + 2, w - 4, h / 2 - 4, 6);
+        ctx.fill();
+
+        ctx.strokeStyle = "#1d4ed8";
+        ctx.lineWidth = 1;
+        drawRoundedRect(
+          ctx,
+          xLeft,
+          yTop,
+          w,
+          h,
+          window.innerWidth > 1000 ? 16 : 8
+        );
+        ctx.stroke();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font =
+          window.innerWidth > 1000 ? "bold 20px Inter" : "600 13px Inter";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(state.m.toFixed(1) + "kg", x, y);
+      }
+
+      function drawVectors(x, y) {
+        const fScale = 100;
+        const fLen = -state.x * fScale;
+        drawArrow(
+          x,
+          y - config.blockH / 2 - (window.innerWidth > 1000 ? 30 : 20),
+          fLen,
+          "#ef4444",
+          "F"
+        );
+
+        const vScale = 30;
+        const vLen = state.v * vScale;
+        drawArrow(
+          x,
+          y - config.blockH / 2 - (window.innerWidth > 1000 ? 60 : 45),
+          vLen,
+          "#22c55e",
+          "v"
+        );
+      }
+
+      function drawArrow(x, y, len, color, label) {
+        if (Math.abs(len) < 4) return;
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = window.innerWidth > 1000 ? 4 : 2;
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + len, y);
+        ctx.stroke();
+        const headSize = window.innerWidth > 1000 ? 10 : 6;
+        const dir = Math.sign(len);
+        ctx.beginPath();
+        ctx.moveTo(x + len, y);
+        ctx.lineTo(x + len - dir * headSize, y - headSize);
+        ctx.lineTo(x + len - dir * headSize, y + headSize);
+        ctx.fill();
+        ctx.font =
+          window.innerWidth > 1000 ? "bold 16px Inter" : "bold 11px Inter";
+        ctx.fillText(
+          label,
+          x + len / 2,
+          y - (window.innerWidth > 1000 ? 10 : 8)
+        );
+      }
+
+      function drawSim() {
+        drawEnvironment();
+        const blockX = origin.x + state.x * config.scale;
+        const blockY = origin.y;
+        drawSpring(config.wallX, blockY, blockX - config.blockW / 2, blockY);
+        drawBlock(blockX, blockY);
+        if (document.getElementById("checkVectors").checked) {
+          drawVectors(blockX, blockY);
+        }
+      }
+
+      function drawGraph() {
+        const w = graphCanvas.width / (window.devicePixelRatio || 1);
+        const h = graphCanvas.height / (window.devicePixelRatio || 1);
+        graphCtx.clearRect(0, 0, w, h);
+
+        const step = w / config.maxHistory;
+        const scaleX = Math.max(h * 0.3, 30);
+        const scaleV = scaleX * 0.25;
+        const midH = h / 2;
+
+        graphCtx.beginPath();
+        graphCtx.strokeStyle = "#f1f5f9";
+        graphCtx.moveTo(0, midH);
+        graphCtx.lineTo(w, midH);
+        graphCtx.stroke();
+
+        graphCtx.fillStyle = "#94a3b8";
+        graphCtx.font = window.innerWidth > 1000 ? "14px Inter" : "10px Inter";
+        graphCtx.fillText("+x", 6, midH - scaleX * 0.9);
+        graphCtx.fillText("-x", 6, midH + scaleX * 0.9);
+
+        if (history.length < 2) return;
+
+        graphCtx.beginPath();
+        graphCtx.strokeStyle = "#3b82f6";
+        graphCtx.lineWidth = window.innerWidth > 1000 ? 4 : 2;
+        for (let i = 0; i < history.length; i++) {
+          const idx = history.length - 1 - i;
+          const pt = history[idx];
+          const px = w - i * step;
+          const py = midH - pt.x * scaleX;
+          if (i === 0) graphCtx.moveTo(px, py);
+          else graphCtx.lineTo(px, py);
+        }
+        graphCtx.stroke();
+
+        graphCtx.lineTo(w - (history.length - 1) * step, midH);
+        graphCtx.lineTo(w, midH);
+        const grd = graphCtx.createLinearGradient(0, 0, 0, h);
+        grd.addColorStop(0, "rgba(59, 130, 246, 0.1)");
+        grd.addColorStop(1, "rgba(59, 130, 246, 0.05)");
+        graphCtx.fillStyle = grd;
+        graphCtx.fill();
+
+        if (document.getElementById("showVGraph").checked) {
+          graphCtx.beginPath();
+          graphCtx.strokeStyle = "#22c55e";
+          graphCtx.lineWidth = window.innerWidth > 1000 ? 4 : 2;
+          for (let i = 0; i < history.length; i++) {
+            const idx = history.length - 1 - i;
+            const pt = history[idx];
+            const px = w - i * step;
+            const py = midH - pt.v * scaleV;
+            if (i === 0) graphCtx.moveTo(px, py);
+            else graphCtx.lineTo(px, py);
+          }
+          graphCtx.stroke();
+        }
+
+        if (graphMouse.active && history.length > 0) {
+          const distFromRight = w - graphMouse.x;
+          let dataIndex = Math.round(distFromRight / step);
+          if (dataIndex < 0) dataIndex = 0;
+          if (dataIndex >= history.length) dataIndex = history.length - 1;
+
+          const pt = history[dataIndex];
+          if (pt) {
+            const px = w - dataIndex * step;
+
+            graphCtx.beginPath();
+            graphCtx.strokeStyle = "#cbd5e1";
+            graphCtx.setLineDash([4, 4]);
+            graphCtx.moveTo(px, 0);
+            graphCtx.lineTo(px, h);
+            graphCtx.stroke();
+            graphCtx.setLineDash([]);
+
+            const boxW = window.innerWidth > 1000 ? 140 : 110;
+            const boxH = window.innerWidth > 1000 ? 70 : 50;
+            let boxX = px + 10;
+            if (boxX + boxW > w) boxX = px - boxW - 10;
+
+            graphCtx.fillStyle = "rgba(255, 255, 255, 0.95)";
+            graphCtx.beginPath();
+            graphCtx.roundRect(boxX, 10, boxW, boxH, 8);
+            graphCtx.fill();
+            graphCtx.strokeStyle = "#e2e8f0";
+            graphCtx.stroke();
+
+            graphCtx.font =
+              window.innerWidth > 1000 ? "14px monospace" : "11px monospace";
+            graphCtx.textAlign = "left";
+            graphCtx.fillStyle = "#64748b";
+            graphCtx.fillText(
+              `t: ${pt.t.toFixed(2)}s`,
+              boxX + 10,
+              window.innerWidth > 1000 ? 30 : 24
+            );
+            graphCtx.fillStyle = "#2563eb";
+            graphCtx.fillText(
+              `x: ${(pt.x * 100).toFixed(2)}`,
+              boxX + 10,
+              window.innerWidth > 1000 ? 55 : 40
+            );
+          }
+        }
+      }
+
+      // --- INTERACTION ---
+      function getPointerPos(e, elem) {
+        const rect = elem.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+      }
+
+      function isMouseOver(x, y) {
+        const bx = origin.x + state.x * config.scale;
+        const by = origin.y;
+        const pad = 30; // Vùng chạm rộng hơn
+        return (
+          x > bx - config.blockW / 2 - pad &&
+          x < bx + config.blockW / 2 + pad &&
+          y > by - config.blockH / 2 - pad &&
+          y < by + config.blockH / 2 + pad
+        );
+      }
+
+      function handleStart(e) {
+        const pos = getPointerPos(e, canvas);
+        if (isMouseOver(pos.x, pos.y)) {
+          e.preventDefault();
+          state.dragging = true;
+          state.running = false;
+          updateControlsUI();
+        }
+      }
+
+      function handleMove(e) {
+        if (state.dragging) {
+          e.preventDefault();
+          const pos = getPointerPos(e, canvas);
+          let newX = (pos.x - origin.x) / config.scale;
+
+          const leftLimit =
+            (config.wallX - origin.x + config.blockW / 2 + 5) / config.scale;
+          if (newX < leftLimit) newX = leftLimit;
+          if (newX > 1.5) newX = 1.5;
+
+          state.x = newX;
+          state.v = 0;
+          state.a = 0;
+        } else {
+          if (!e.touches) {
+            const pos = getPointerPos(e, canvas);
+            canvas.style.cursor = isMouseOver(pos.x, pos.y)
+              ? "grab"
+              : "default";
+          }
+        }
+      }
+
+      function handleEnd(e) {
+        if (state.dragging) {
+          state.dragging = false;
+          document.getElementById("dragHint").style.opacity = "0";
+        }
+      }
+
+      canvas.addEventListener("mousedown", handleStart);
+      window.addEventListener("mousemove", handleMove);
+      window.addEventListener("mouseup", handleEnd);
+
+      canvas.addEventListener("touchstart", handleStart, { passive: false });
+      window.addEventListener("touchmove", handleMove, { passive: false });
+      window.addEventListener("touchend", handleEnd);
+
+      function handleGraphMove(e) {
+        const rect = graphCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        graphMouse.x = (clientX - rect.left) * (window.devicePixelRatio || 1);
+        graphMouse.y = (clientY - rect.top) * (window.devicePixelRatio || 1);
+        graphMouse.active = true;
+        if (!state.running) drawGraph();
+      }
+
+      graphCanvas.addEventListener("mousemove", handleGraphMove);
+      graphCanvas.addEventListener("touchmove", handleGraphMove, {
+        passive: true,
+      });
+      graphCanvas.addEventListener("mouseleave", () => {
+        graphMouse.active = false;
+        if (!state.running) drawGraph();
+      });
+      graphCanvas.addEventListener("touchend", () => {
+        graphMouse.active = false;
+        if (!state.running) drawGraph();
+      });
+
+      // --- LOOP ---
+      let lastTime = 0;
+      function loop(timestamp) {
+        if (!lastTime) lastTime = timestamp;
+        const dtRaw = (timestamp - lastTime) / 1000;
+        lastTime = timestamp;
+        const dt = Math.min(dtRaw, 0.05);
+
+        const isSlow = document.getElementById("checkSlowMo").checked;
+        update(isSlow ? dt * 0.2 : dt);
+
+        drawSim();
+        drawGraph();
+        updateUI();
+
+        requestAnimationFrame(loop);
+      }
+
+      // --- UI ---
+      function updateUI() {
+        document.getElementById("valX").innerText = (state.x * 100).toFixed(2);
+        document.getElementById("valV").innerText = state.v.toFixed(2);
+
+        const tStr = `t = ${state.t.toFixed(2)}s`;
+        document.getElementById("headerTime").innerText = tStr;
+        document.getElementById("hudTime").innerText = state.t.toFixed(2) + "s";
+
+        const pe = 0.5 * state.k * state.x * state.x;
+        const ke = 0.5 * state.m * state.v * state.v;
+        const me = pe + ke;
+
+        document.getElementById("headerEnergy").innerText = `E = ${me.toFixed(
+          3
+        )}J`;
+      }
+
+      function updateControlsUI() {
+        const btn = document.getElementById("playPauseBtn");
+        const txt = document.getElementById("playText");
+        const pIcon = document.getElementById("playIcon");
+        const paIcon = document.getElementById("pauseIcon");
+
+        if (state.running) {
+          btn.classList.replace("bg-lab-primary", "bg-red-500");
+          btn.classList.replace("hover:bg-blue-600", "hover:bg-red-600");
+          txt.innerText = "Dừng";
+          pIcon.classList.add("hidden");
+          paIcon.classList.remove("hidden");
+        } else {
+          btn.classList.replace("bg-red-500", "bg-lab-primary");
+          btn.classList.replace("hover:bg-red-600", "hover:bg-blue-600");
+          txt.innerText = "Bắt đầu";
+          pIcon.classList.remove("hidden");
+          paIcon.classList.add("hidden");
+        }
+      }
+
+      // --- EVENTS ---
+      document.getElementById("playPauseBtn").addEventListener("click", () => {
+        state.running = !state.running;
+        updateControlsUI();
+        if (state.running)
+          document.getElementById("dragHint").style.opacity = "0";
+      });
+
+      document.getElementById("resetBtn").addEventListener("click", () => {
+        state.running = false;
+        state.t = 0;
+        state.x = 0;
+        state.v = 0;
+        state.a = 0;
+        history = [];
+        updateControlsUI();
+        document.getElementById("dragHint").style.opacity = "1";
+      });
+
+      const bindSlider = (id, prop, dispId, unit) => {
+        document.getElementById(id).addEventListener("input", (e) => {
+          state[prop] = parseFloat(e.target.value);
+          document.getElementById(dispId).innerText =
+            state[prop].toFixed(prop === "c" ? 2 : 1) +
+            (unit ? " " + unit : "");
+        });
+      };
+      bindSlider("inputM", "m", "displayM", "kg");
+      bindSlider("inputK", "k", "displayK", "N/m");
+      bindSlider("inputDamping", "c", "displayDamping", "");
+
+      // HUD Toggle Logic
+      const hudHeader = document.getElementById("hudHeader");
+      const hudContent = document.getElementById("hudContent");
+      const hudIconOpen = document.getElementById("hudIconOpen");
+      const hudIconClosed = document.getElementById("hudIconClosed");
+
+      hudHeader.addEventListener("click", () => {
+        const isHidden = hudContent.classList.contains("hidden");
+        if (isHidden) {
+          hudContent.classList.remove("hidden");
+          hudIconOpen.classList.remove("hidden");
+          hudIconClosed.classList.add("hidden");
+          hudHeader.classList.add("border-b");
+        } else {
+          hudContent.classList.add("hidden");
+          hudIconOpen.classList.add("hidden");
+          hudIconClosed.classList.remove("hidden");
+          hudHeader.classList.remove("border-b");
+        }
+      });
+
+      // Init
+      setTimeout(() => {
+        resize();
+        requestAnimationFrame(loop);
+      }, 100);
+    </script>
+  </body>
+</html>

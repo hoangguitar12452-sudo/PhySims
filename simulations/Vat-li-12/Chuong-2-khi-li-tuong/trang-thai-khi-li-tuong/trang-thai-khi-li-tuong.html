@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>PhySim - Mô Phỏng Trạng Thái Khí Lý Tưởng</title>
+
+    <!-- 1. Cài đặt Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            screens: {
+              xs: "480px",
+            },
+            cursor: {
+              grab: "grab",
+              grabbing: "grabbing",
+            },
+          },
+        },
+      };
+    </script>
+
+    <!-- 2. Cài đặt React & ReactDOM -->
+    <script
+      crossorigin
+      src="https://unpkg.com/react@18/umd/react.development.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+    ></script>
+
+    <!-- 3. Cài đặt Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Font chữ Inter -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        touch-action: pan-y;
+        overscroll-behavior: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 20px;
+        width: 20px;
+        border-radius: 50%;
+        background: white;
+        border: 2px solid currentColor;
+        margin-top: -8px;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: transform 0.1s;
+      }
+      input[type="range"]::-webkit-slider-thumb:active {
+        transform: scale(1.2);
+      }
+      input[type="range"]::-webkit-slider-runnable-track {
+        height: 4px;
+        border-radius: 2px;
+      }
+
+      .noselect {
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .lab-bg {
+        background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+        background-size: 24px 24px;
+        background-color: #f8fafc;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 antialiased selection:bg-blue-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useEffect, useRef, useCallback } = React;
+
+      // --- 1. UTILS ---
+      const drawRoundedRect = (ctx, x, y, width, height, radius) => {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(
+          x + width,
+          y + height,
+          x + width - radius,
+          y + height
+        );
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        ctx.fill();
+      };
+
+      // --- 2. ICONS ---
+      const Icon = ({ children, className, size = 20, ...props }) => (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={className}
+          {...props}
+        >
+          {children}
+        </svg>
+      );
+
+      const Play = (props) => (
+        <Icon {...props}>
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </Icon>
+      );
+      const Pause = (props) => (
+        <Icon {...props}>
+          <rect x="6" y="4" width="4" height="16"></rect>
+          <rect x="14" y="4" width="4" height="16"></rect>
+        </Icon>
+      );
+      const RefreshCw = (props) => (
+        <Icon {...props}>
+          <path d="M23 4v6h-6"></path>
+          <path d="M1 20v-6h6"></path>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </Icon>
+      );
+      const Thermometer = (props) => (
+        <Icon {...props}>
+          <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
+        </Icon>
+      );
+      const Box = (props) => (
+        <Icon {...props}>
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+          <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        </Icon>
+      );
+      const Gauge = (props) => (
+        <Icon {...props}>
+          <path d="m12 14 4-4"></path>
+          <path d="M3.34 19a10 10 0 1 1 17.32 0"></path>
+        </Icon>
+      );
+      const MoveVertical = (props) => (
+        <Icon {...props}>
+          <polyline points="8 18 12 22 16 18"></polyline>
+          <polyline points="8 6 12 2 16 6"></polyline>
+          <line x1="12" y1="2" x2="12" y2="22"></line>
+        </Icon>
+      );
+      const Activity = (props) => (
+        <Icon {...props}>
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </Icon>
+      );
+
+      // --- 3. CONSTANTS ---
+      const PARTICLE_RADIUS = 4;
+      const CONTAINER_WIDTH = 300;
+      const MAX_HEIGHT = 400;
+      const MIN_HEIGHT = 60;
+
+      // --- 4. MAIN COMPONENT ---
+      const IdealGasSimulation = () => {
+        // State
+        const [temperature, setTemperature] = useState(300);
+        const [volume, setVolume] = useState(250);
+        const [pressure, setPressure] = useState(0);
+        const [particleCount, setParticleCount] = useState(80);
+
+        const [isPlaying, setIsPlaying] = useState(true);
+        const [mode, setMode] = useState("free");
+        const [history, setHistory] = useState([]);
+        const [showTrace, setShowTrace] = useState(false);
+        const [isDragging, setIsDragging] = useState(false);
+        const [isHovering, setIsHovering] = useState(false);
+
+        // Graph Interaction States
+        const [graphHoverPos, setGraphHoverPos] = useState(null);
+        const [isGraphDragging, setIsGraphDragging] = useState(false);
+
+        const canvasRef = useRef(null);
+        const requestRef = useRef();
+        const particlesRef = useRef([]);
+
+        // Init Particles
+        const initParticles = useCallback(() => {
+          const newParticles = [];
+          for (let i = 0; i < particleCount; i++) {
+            newParticles.push({
+              x:
+                Math.random() * (CONTAINER_WIDTH - PARTICLE_RADIUS * 2) +
+                PARTICLE_RADIUS,
+              y:
+                Math.random() * (volume - PARTICLE_RADIUS * 2) +
+                PARTICLE_RADIUS,
+              vx: (Math.random() - 0.5) * 3,
+              vy: (Math.random() - 0.5) * 3,
+              hue: 200 + Math.random() * 40,
+              trace: [],
+            });
+          }
+          particlesRef.current = newParticles;
+        }, [particleCount]);
+
+        // Physics Calculation
+        useEffect(() => {
+          const calculatedPressure =
+            (particleCount * temperature * 0.15) / volume;
+          setPressure(calculatedPressure);
+
+          if (isPlaying) {
+            setHistory((prev) => {
+              const last = prev[prev.length - 1];
+              if (
+                !last ||
+                Math.abs(last.p - calculatedPressure) > 0.1 ||
+                Math.abs(last.v - volume) > 2 ||
+                Math.abs(last.t - temperature) > 2
+              ) {
+                const newHistory = [
+                  ...prev,
+                  { v: volume, p: calculatedPressure, t: temperature },
+                ];
+                if (newHistory.length > 200) newHistory.shift();
+                return newHistory;
+              }
+              return prev;
+            });
+          }
+        }, [temperature, volume, particleCount, isPlaying]);
+
+        // Handlers
+        const handleVolumeChange = (newVolume) => {
+          if (mode === "isochoric") return;
+          const clampedVol = Math.max(
+            MIN_HEIGHT,
+            Math.min(MAX_HEIGHT, newVolume)
+          );
+          if (mode === "isobaric") {
+            const newTemp = temperature * (clampedVol / volume);
+            if (newTemp <= 1500 && newTemp >= 50) setTemperature(newTemp);
+            else return;
+          }
+          setVolume(clampedVol);
+          particlesRef.current.forEach((p) => {
+            if (p.y > clampedVol - PARTICLE_RADIUS) {
+              p.y = clampedVol - PARTICLE_RADIUS;
+              p.vy = -Math.abs(p.vy);
+            }
+          });
+        };
+
+        const handleTemperatureChange = (newTemp) => {
+          if (mode === "isothermal") return;
+          if (mode === "isobaric") {
+            const newVol = volume * (newTemp / temperature);
+            setVolume(Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, newVol)));
+          }
+          setTemperature(newTemp);
+        };
+
+        const resetSimulation = () => {
+          setTemperature(300);
+          setVolume(250);
+          setHistory([]);
+          initParticles();
+          setMode("free");
+        };
+
+        // --- CANVAS RESIZE & DPI ---
+        useEffect(() => {
+          const handleResize = () => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            if (
+              canvas.width !== rect.width * dpr ||
+              canvas.height !== rect.height * dpr
+            ) {
+              canvas.width = rect.width * dpr;
+              canvas.height = rect.height * dpr;
+            }
+          };
+          window.addEventListener("resize", handleResize);
+          handleResize(); // Init
+          return () => window.removeEventListener("resize", handleResize);
+        }, []);
+
+        // --- ANIMATION & LOGIC (GIỮ NGUYÊN) ---
+        const getLayoutMetrics = (canvas) => {
+          if (!canvas) return { originX: 0, bottomY: 0, scale: 1 };
+          const dpr = window.devicePixelRatio || 1;
+          const canvasWidth = canvas.width / dpr;
+          const canvasHeight = canvas.height / dpr;
+          const LOGICAL_WIDTH = CONTAINER_WIDTH + 80;
+          const LOGICAL_HEIGHT = MAX_HEIGHT + 120;
+          const scaleX = canvasWidth / LOGICAL_WIDTH;
+          const scaleY = canvasHeight / LOGICAL_HEIGHT;
+          let scale = Math.min(scaleX, scaleY) * 0.9;
+          if (canvasWidth < 500) scale = canvasWidth / (CONTAINER_WIDTH + 40);
+          const originX = (canvasWidth / scale - CONTAINER_WIDTH) / 2;
+          const bottomY = canvasHeight / scale - 60;
+          return { originX, bottomY, scale };
+        };
+
+        useEffect(() => {
+          if (!isDragging) return;
+          const handleGlobalMove = (e) => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const rect = canvas.getBoundingClientRect();
+            let clientY = e.clientY;
+            if (e.touches && e.touches.length > 0)
+              clientY = e.touches[0].clientY;
+            const y_pixel = clientY - rect.top;
+            const { bottomY, scale } = getLayoutMetrics(canvas);
+            const y_logic = y_pixel / scale;
+            const newVol = bottomY - y_logic + 15;
+            handleVolumeChange(newVol);
+          };
+          const handleGlobalUp = () => {
+            setIsDragging(false);
+            document.body.style.cursor = "default";
+          };
+          window.addEventListener("mousemove", handleGlobalMove);
+          window.addEventListener("mouseup", handleGlobalUp);
+          window.addEventListener("touchmove", handleGlobalMove, {
+            passive: false,
+          });
+          window.addEventListener("touchend", handleGlobalUp);
+          return () => {
+            window.removeEventListener("mousemove", handleGlobalMove);
+            window.removeEventListener("mouseup", handleGlobalUp);
+            window.removeEventListener("touchmove", handleGlobalMove);
+            window.removeEventListener("touchend", handleGlobalUp);
+          };
+        }, [isDragging, volume, mode, temperature]);
+
+        const handlePointerDown = (e) => {
+          if (mode === "isochoric") return;
+          const canvas = canvasRef.current;
+          const rect = canvas.getBoundingClientRect();
+          let clientY = e.clientY;
+          if (e.touches && e.touches.length > 0) clientY = e.touches[0].clientY;
+          const y_pixel = clientY - rect.top;
+          const { bottomY, scale } = getLayoutMetrics(canvas);
+          const y_logic = y_pixel / scale;
+          const pistonY = bottomY - volume;
+          if (Math.abs(y_logic - pistonY) < 50) {
+            setIsDragging(true);
+            document.body.style.cursor = "grabbing";
+          }
+        };
+
+        const handlePointerMove = (e) => {
+          if (isDragging) return;
+          const canvas = canvasRef.current;
+          const rect = canvas.getBoundingClientRect();
+          const y_pixel = e.clientY - rect.top;
+          const { bottomY, scale } = getLayoutMetrics(canvas);
+          const y_logic = y_pixel / scale;
+          const pistonY = bottomY - volume;
+          if (Math.abs(y_logic - pistonY) < 50 && mode !== "isochoric") {
+            setIsHovering(true);
+          } else {
+            setIsHovering(false);
+          }
+        };
+
+        const animate = useCallback(() => {
+          const canvas = canvasRef.current;
+          requestRef.current = requestAnimationFrame(animate);
+          if (canvas) {
+            const ctx = canvas.getContext("2d");
+            const dpr = window.devicePixelRatio || 1;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            const rect = canvas.getBoundingClientRect();
+            if (Math.abs(canvas.width - rect.width * dpr) > 5) {
+              canvas.width = rect.width * dpr;
+              canvas.height = rect.height * dpr;
+              ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+            ctx.clearRect(0, 0, rect.width, rect.height);
+            const { originX, bottomY, scale } = getLayoutMetrics(canvas);
+            ctx.scale(scale, scale);
+            const pistonY = bottomY - volume;
+            const speedFactor = Math.sqrt(temperature) * 0.12;
+
+            // Ruler
+            ctx.fillStyle = "#94a3b8";
+            ctx.font = "500 10px Inter";
+            ctx.textAlign = "right";
+            ctx.textBaseline = "middle";
+            ctx.beginPath();
+            ctx.moveTo(originX - 15, bottomY - MAX_HEIGHT);
+            ctx.lineTo(originX - 15, bottomY);
+            ctx.strokeStyle = "#cbd5e1";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            for (let h = 0; h <= MAX_HEIGHT; h += 50) {
+              const yPos = bottomY - h;
+              ctx.fillStyle = "#94a3b8";
+              ctx.fillRect(originX - 20, yPos, 5, 1);
+              ctx.fillText(h, originX - 25, yPos);
+            }
+            ctx.fillStyle = "#ef4444";
+            ctx.fillRect(originX - 22, pistonY, 12, 2);
+            ctx.font = "bold 11px Inter";
+            ctx.fillText(Math.round(volume), originX - 28, pistonY);
+
+            // Burner
+            const burnerY = bottomY + 5;
+            ctx.fillStyle = "#e2e8f0";
+            drawRoundedRect(ctx, originX, burnerY + 10, CONTAINER_WIDTH, 8, 4);
+            if (Math.abs(temperature - 300) > 10) {
+              const isHot = temperature > 300;
+              const intensity = Math.min(1, Math.abs(temperature - 300) / 800);
+              const centerX = originX + CONTAINER_WIDTH / 2;
+              const glow = ctx.createRadialGradient(
+                centerX,
+                burnerY,
+                0,
+                centerX,
+                burnerY,
+                CONTAINER_WIDTH / 2
+              );
+              if (isHot) {
+                glow.addColorStop(0, `rgba(239, 68, 68, ${intensity})`);
+                glow.addColorStop(1, "rgba(239, 68, 68, 0)");
+              } else {
+                glow.addColorStop(0, `rgba(59, 130, 246, ${intensity})`);
+                glow.addColorStop(1, "rgba(59, 130, 246, 0)");
+              }
+              ctx.fillStyle = glow;
+              ctx.fillRect(
+                originX - 20,
+                burnerY - 10,
+                CONTAINER_WIDTH + 40,
+                50
+              );
+              ctx.fillStyle = isHot ? "#b91c1c" : "#1d4ed8";
+              ctx.font = "bold 10px Inter";
+              ctx.textAlign = "center";
+              ctx.fillText(
+                isHot ? "CẤP NHIỆT" : "LÀM LẠNH",
+                centerX,
+                burnerY + 28
+              );
+            }
+
+            // Cylinder
+            ctx.fillStyle = "rgba(241, 245, 249, 0.5)";
+            ctx.fillRect(originX, pistonY, CONTAINER_WIDTH, volume);
+            ctx.strokeStyle = "#64748b";
+            ctx.lineWidth = 4;
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            ctx.moveTo(originX, pistonY - 5);
+            ctx.lineTo(originX, bottomY);
+            ctx.lineTo(originX + CONTAINER_WIDTH, bottomY);
+            ctx.lineTo(originX + CONTAINER_WIDTH, pistonY - 5);
+            ctx.stroke();
+            ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+            ctx.fillRect(originX + 10, pistonY, 15, volume);
+            ctx.fillRect(originX + CONTAINER_WIDTH - 25, pistonY, 10, volume);
+
+            // Piston
+            const pistonHeight = 16;
+            const rodLength = 15;
+            const handleY = pistonY - pistonHeight - rodLength;
+            const pistonGrad = ctx.createLinearGradient(
+              originX,
+              0,
+              originX + CONTAINER_WIDTH,
+              0
+            );
+            pistonGrad.addColorStop(0, "#94a3b8");
+            pistonGrad.addColorStop(0.5, "#cbd5e1");
+            pistonGrad.addColorStop(1, "#94a3b8");
+            ctx.fillStyle = isDragging || isHovering ? "#60a5fa" : pistonGrad;
+            if (isDragging) ctx.fillStyle = "#3b82f6";
+            drawRoundedRect(
+              ctx,
+              originX + 2,
+              pistonY - pistonHeight,
+              CONTAINER_WIDTH - 4,
+              pistonHeight,
+              2
+            );
+            ctx.fillStyle = "#cbd5e1";
+            ctx.fillRect(
+              originX + CONTAINER_WIDTH / 2 - 10,
+              handleY,
+              20,
+              rodLength
+            );
+            ctx.strokeStyle = "#94a3b8";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(
+              originX + CONTAINER_WIDTH / 2 - 10,
+              handleY,
+              20,
+              rodLength
+            );
+            ctx.fillStyle = "#475569";
+            drawRoundedRect(
+              ctx,
+              originX + CONTAINER_WIDTH / 2 - 30,
+              handleY,
+              60,
+              8,
+              4
+            );
+            if (mode !== "isochoric") {
+              if (isHovering || isDragging) {
+                ctx.fillStyle = "white";
+                ctx.font = "bold 12px Inter";
+                ctx.textAlign = "center";
+                ctx.fillText("↕", originX + CONTAINER_WIDTH / 2, pistonY - 8);
+                canvas.style.cursor = isDragging ? "grabbing" : "grab";
+              } else {
+                canvas.style.cursor = "default";
+              }
+            } else {
+              ctx.fillStyle = "#ef4444";
+              ctx.beginPath();
+              ctx.arc(originX - 5, pistonY - 8, 4, 0, Math.PI * 2);
+              ctx.arc(
+                originX + CONTAINER_WIDTH + 5,
+                pistonY - 8,
+                4,
+                0,
+                Math.PI * 2
+              );
+              ctx.fill();
+              canvas.style.cursor = "not-allowed";
+            }
+
+            // Particles
+            particlesRef.current.forEach((p, index) => {
+              if (isPlaying) {
+                p.x += p.vx * speedFactor;
+                p.y += p.vy * speedFactor;
+                if (p.x <= PARTICLE_RADIUS) {
+                  p.vx = Math.abs(p.vx);
+                  p.x = PARTICLE_RADIUS;
+                } else if (p.x >= CONTAINER_WIDTH - PARTICLE_RADIUS) {
+                  p.vx = -Math.abs(p.vx);
+                  p.x = CONTAINER_WIDTH - PARTICLE_RADIUS;
+                }
+                if (p.y <= PARTICLE_RADIUS) {
+                  p.vy = Math.abs(p.vy);
+                  p.y = PARTICLE_RADIUS;
+                } else if (p.y >= volume - PARTICLE_RADIUS) {
+                  p.vy = -Math.abs(p.vy);
+                  p.y = volume - PARTICLE_RADIUS;
+                }
+                if (showTrace && index === 0) {
+                  p.trace.push({ x: p.x, y: p.y });
+                  if (p.trace.length > 50) p.trace.shift();
+                } else {
+                  p.trace = [];
+                }
+              }
+              const drawX = originX + p.x;
+              const drawY = pistonY + p.y;
+              if (p.trace.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = "rgba(250, 204, 21, 0.6)";
+                ctx.lineWidth = 2;
+                p.trace.forEach((pos, i) => {
+                  const tx = originX + pos.x;
+                  const ty = pistonY + pos.y;
+                  if (i === 0) ctx.moveTo(tx, ty);
+                  else ctx.lineTo(tx, ty);
+                });
+                ctx.stroke();
+              }
+              const grad = ctx.createRadialGradient(
+                drawX - 1,
+                drawY - 1,
+                0,
+                drawX,
+                drawY,
+                PARTICLE_RADIUS
+              );
+              if (index === 0) {
+                grad.addColorStop(0, "#fef08a");
+                grad.addColorStop(1, "#eab308");
+              } else {
+                const heatRatio = Math.min(1, (temperature - 100) / 900);
+                const r = Math.round(59 + (239 - 59) * heatRatio);
+                const g = Math.round(130 + (68 - 130) * heatRatio);
+                const b = Math.round(246 + (68 - 246) * heatRatio);
+                grad.addColorStop(0, `rgb(${r + 40}, ${g + 40}, ${b + 40})`);
+                grad.addColorStop(1, `rgb(${r}, ${g}, ${b})`);
+              }
+              ctx.beginPath();
+              ctx.arc(
+                drawX,
+                drawY,
+                index === 0 ? PARTICLE_RADIUS + 2 : PARTICLE_RADIUS,
+                0,
+                Math.PI * 2
+              );
+              ctx.fillStyle = grad;
+              ctx.fill();
+              ctx.fillStyle = "rgba(255,255,255,0.6)";
+              ctx.beginPath();
+              ctx.arc(drawX - 1, drawY - 1, 1, 0, Math.PI * 2);
+              ctx.fill();
+            });
+          }
+        }, [
+          temperature,
+          volume,
+          isPlaying,
+          showTrace,
+          isDragging,
+          isHovering,
+          mode,
+        ]);
+
+        useEffect(() => {
+          initParticles();
+        }, [initParticles]);
+        useEffect(() => {
+          requestRef.current = requestAnimationFrame(animate);
+          return () => cancelAnimationFrame(requestRef.current);
+        }, [animate]);
+
+        // --- GRAPH INTERACTION (DRAG & DROP) ---
+        const handleGraphDown = (e) => {
+          setIsGraphDragging(true);
+          handleGraphMove(e, true);
+        };
+
+        const handleGraphMove = useCallback(
+          (e, isDown = false) => {
+            if (!isGraphDragging && !isDown) return;
+
+            const svg = e.currentTarget;
+            if (!svg) return;
+            const rect = svg.getBoundingClientRect();
+
+            // Get SVG Coordinates relative to viewBox
+            // We assume svg fills container, so we map mouse to viewBox coords
+            // ViewBox is 280x200
+            const scaleX = 280 / rect.width;
+            const scaleY = 200 / rect.height;
+
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            const mouseX = (clientX - rect.left) * scaleX;
+            const mouseY = (clientY - rect.top) * scaleY;
+
+            const padding = 35;
+            const graphW = 280 - padding * 2;
+            const graphH = 200 - padding * 2;
+
+            // Clamp to graph area
+            const x = Math.max(padding, Math.min(280 - padding, mouseX));
+            const y = Math.max(padding, Math.min(200 - padding, mouseY));
+
+            // Convert to values
+            const xRatio = (x - padding) / graphW;
+            const yRatio = (200 - padding - y) / graphH; // Y axis is inverted in SVG
+
+            // Logic update based on mode
+            // Map values depending on what the axes represent
+            if (mode === "free") {
+              // P-V graph: X=V, Y=P
+              // Free mode allows dragging anywhere. We update V and T (to match P)
+              const newV = xRatio * MAX_HEIGHT;
+              const newP = yRatio * 40; // Max Pressure 40 atm
+
+              // Constrain V
+              const clampedV = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, newV));
+
+              // Calculate T required for this P, V: PV = nRT => T = PV / (nR)
+              // k = nR = particleCount * 0.15
+              const k = particleCount * 0.15;
+              let newT = (newP * clampedV) / k;
+
+              // Constrain T
+              newT = Math.max(100, Math.min(1000, newT));
+
+              setVolume(clampedV);
+              setTemperature(newT);
+            } else if (mode === "isothermal") {
+              // P-V graph: X=V. T is constant. P is dependent.
+              const newV = xRatio * MAX_HEIGHT;
+              handleVolumeChange(newV);
+            } else if (mode === "isochoric") {
+              // P-T graph: X=T. V is constant. P is dependent.
+              const newT = xRatio * 1500;
+              handleTemperatureChange(newT);
+            } else if (mode === "isobaric") {
+              // V-T graph: X=T. P is constant. V is dependent.
+              const newT = xRatio * 1500;
+              handleTemperatureChange(newT);
+            }
+          },
+          [isGraphDragging, mode, particleCount]
+        );
+
+        const handleGraphUp = () => {
+          setIsGraphDragging(false);
+        };
+
+        // Global mouse up for graph dragging
+        useEffect(() => {
+          if (isGraphDragging) {
+            window.addEventListener("mouseup", handleGraphUp);
+            window.addEventListener("touchend", handleGraphUp);
+            return () => {
+              window.removeEventListener("mouseup", handleGraphUp);
+              window.removeEventListener("touchend", handleGraphUp);
+            };
+          }
+        }, [isGraphDragging]);
+
+        // --- RENDER DIAGRAM ---
+        const renderDiagram = () => {
+          const padding = 35;
+          const vbW = 280;
+          const vbH = 200;
+          const graphW = vbW - padding * 2;
+          const graphH = vbH - padding * 2;
+
+          let title = "Biểu đồ P-V";
+          let xLabel = "V (L)";
+          let yLabel = "P (atm)";
+          let xMax = MAX_HEIGHT;
+          let yMax = 40;
+          let xVal = (pt) => pt.v;
+          let yVal = (pt) => pt.p;
+          let bgCurves = []; // Background reference curves
+
+          const k = particleCount * 0.15; // nR
+
+          if (mode === "isochoric") {
+            title = "Biểu đồ P-T (Charles)";
+            xLabel = "T (K)";
+            yLabel = "P (atm)";
+            xMax = 1500;
+            yMax = 40;
+            xVal = (pt) => pt.t;
+            yVal = (pt) => pt.p;
+            // Isochores: P = (nR/V)T => Linear lines
+            bgCurves = [100, 200, 300, 400].map((vol) => {
+              const slope = k / vol;
+              const pMax = slope * xMax;
+              // y = slope * x. Map to SVG coords
+              const x1 = padding,
+                y1 = vbH - padding;
+              const x2 = padding + graphW;
+              const y2 = vbH - padding - (pMax / yMax) * graphH;
+              // Clamp y2
+              const y2Clamped = Math.max(padding, y2);
+              // Recalculate x2 if y clipped
+              const x2Clamped =
+                y2 < padding ? padding + (yMax / slope / xMax) * graphW : x2;
+
+              return (
+                <line
+                  key={vol}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2Clamped}
+                  y2={y2Clamped}
+                  stroke="#e2e8f0"
+                  strokeWidth="1"
+                  strokeDasharray="3 3"
+                />
+              );
+            });
+          } else if (mode === "isobaric") {
+            title = "Biểu đồ V-T (Gay-Lussac)";
+            xLabel = "T (K)";
+            yLabel = "V (L)";
+            xMax = 1500;
+            yMax = MAX_HEIGHT;
+            xVal = (pt) => pt.t;
+            yVal = (pt) => pt.v;
+            // Isobars: V = (nR/P)T => Linear lines
+            bgCurves = [5, 10, 20, 30].map((press) => {
+              const slope = k / press;
+              const vMax = slope * xMax;
+              const x1 = padding,
+                y1 = vbH - padding;
+              const y2 = vbH - padding - (vMax / yMax) * graphH;
+              const y2Clamped = Math.max(padding, y2);
+              const x2Clamped =
+                y2 < padding
+                  ? padding + (yMax / slope / xMax) * graphW
+                  : padding + graphW;
+              return (
+                <line
+                  key={press}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2Clamped}
+                  y2={y2Clamped}
+                  stroke="#e2e8f0"
+                  strokeWidth="1"
+                  strokeDasharray="3 3"
+                />
+              );
+            });
+          } else {
+            // P-V Mode (Free or Isothermal)
+            // Isotherms: P = nRT / V => Hyperbolas
+            bgCurves = [300, 500, 700, 900].map((temp) => {
+              const pathPoints = [];
+              for (let v = 50; v <= xMax; v += 10) {
+                const p = (k * temp) / v;
+                if (p > yMax * 1.5) continue; // Skip way out of bounds
+                const xPx = padding + (v / xMax) * graphW;
+                const yPx = vbH - padding - (p / yMax) * graphH;
+                pathPoints.push(`${xPx},${yPx}`);
+              }
+              return (
+                <path
+                  key={temp}
+                  d={`M ${pathPoints.join(" L ")}`}
+                  fill="none"
+                  stroke="#e2e8f0"
+                  strokeWidth="1"
+                  strokeDasharray="3 3"
+                />
+              );
+            });
+          }
+
+          const getX = (val) => padding + (val / xMax) * graphW;
+          const getY = (val) => vbH - padding - (val / yMax) * graphH;
+          const pathData = history
+            .map(
+              (pt, i) =>
+                (i === 0 ? "M" : "L") +
+                `${getX(xVal(pt)).toFixed(1)},${getY(yVal(pt)).toFixed(1)}`
+            )
+            .join(" ");
+          const curX = getX(xVal({ p: pressure, v: volume, t: temperature }));
+          const curY = getY(yVal({ p: pressure, v: volume, t: temperature }));
+
+          return (
+            <div className="h-full w-full flex flex-col relative select-none">
+              <div className="flex justify-between items-center mb-1 px-1">
+                <h3 className="font-semibold text-slate-700 text-xs sm:text-sm">
+                  {title}
+                </h3>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                    mode === "free"
+                      ? "bg-gray-200 text-gray-700"
+                      : "bg-blue-100 text-blue-800"
+                  }`}
+                >
+                  {mode}
+                </span>
+              </div>
+              <div className="relative flex-grow border border-slate-200 rounded-lg overflow-hidden bg-white shadow-inner group">
+                <svg
+                  viewBox={`0 0 ${vbW} ${vbH}`}
+                  preserveAspectRatio="none"
+                  width="100%"
+                  height="100%"
+                  className={`overflow-visible ${
+                    isGraphDragging ? "cursor-grabbing" : "cursor-crosshair"
+                  }`}
+                  onMouseDown={handleGraphDown}
+                  onMouseMove={(e) => handleGraphMove(e, false)}
+                  onTouchStart={handleGraphDown}
+                  onTouchMove={(e) => handleGraphMove(e, true)}
+                >
+                  <defs>
+                    <marker
+                      id="arrow"
+                      markerWidth="6"
+                      markerHeight="6"
+                      refX="0"
+                      refY="3"
+                      orient="auto"
+                      markerUnits="strokeWidth"
+                    >
+                      <path d="M0,0 L0,6 L6,3 z" fill="#94a3b8" />
+                    </marker>
+                  </defs>
+
+                  {/* Background Reference Curves */}
+                  {bgCurves}
+
+                  {/* Axes */}
+                  <line
+                    x1={padding}
+                    y1={vbH - padding}
+                    x2={vbW - 10}
+                    y2={vbH - padding}
+                    stroke="#94a3b8"
+                    strokeWidth="1.5"
+                    markerEnd="url(#arrow)"
+                  />
+                  <line
+                    x1={padding}
+                    y1={vbH - padding}
+                    x2={padding}
+                    y2={10}
+                    stroke="#94a3b8"
+                    strokeWidth="1.5"
+                    markerEnd="url(#arrow)"
+                  />
+                  <text
+                    x={vbW - 10}
+                    y={vbH - 15}
+                    fontSize="10"
+                    fill="#64748b"
+                    fontWeight="bold"
+                    textAnchor="end"
+                  >
+                    {xLabel}
+                  </text>
+                  <text
+                    x={15}
+                    y={15}
+                    fontSize="10"
+                    fill="#64748b"
+                    fontWeight="bold"
+                  >
+                    {yLabel}
+                  </text>
+
+                  {/* Data Path */}
+                  <path
+                    d={pathData}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="2.5"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+
+                  {/* Current Point & Interaction Feedback */}
+                  <circle
+                    cx={curX}
+                    cy={curY}
+                    r={isGraphDragging ? 7 : 5}
+                    fill="#ef4444"
+                    stroke="white"
+                    strokeWidth="2"
+                    className="drop-shadow-md transition-all duration-100"
+                    style={{ cursor: "grab" }}
+                  />
+
+                  {/* Hover Lines */}
+                  {(isGraphDragging || graphHoverPos) && (
+                    <g opacity="0.6">
+                      <line
+                        x1={curX}
+                        y1={padding}
+                        x2={curX}
+                        y2={vbH - padding}
+                        stroke="#ef4444"
+                        strokeDasharray="4 4"
+                        strokeWidth="1"
+                      />
+                      <line
+                        x1={padding}
+                        y1={curY}
+                        x2={vbW}
+                        y2={curY}
+                        stroke="#ef4444"
+                        strokeDasharray="4 4"
+                        strokeWidth="1"
+                      />
+                    </g>
+                  )}
+                </svg>
+
+                {/* Drag Hint Overlay */}
+                {!isGraphDragging && mode === "free" && (
+                  <div className="absolute bottom-2 right-2 text-[9px] text-slate-400 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                    Kéo điểm đỏ để thay đổi trạng thái
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        };
+
+        return (
+          <div className="flex flex-col min-h-screen p-3 md:p-6 lg:p-8 font-sans">
+            <header className="mb-4 md:mb-6 flex flex-wrap justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-200 gap-3">
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-3">
+                  <div className="p-2 bg-blue-600 rounded-lg text-white shadow-lg shadow-blue-200">
+                    <Activity size={24} />
+                  </div>
+                  <span className="hidden sm:inline">PhySim</span>
+                  <span className="sm:hidden">Trạng thái Khí Lý Tưởng</span>
+                </h1>
+                <p className="text-slate-500 text-xs md:text-sm mt-1 ml-14 hidden sm:block">
+                  Mô phỏng phỏng trạng thái Khí lí tưởng
+                </p>
+              </div>
+              <button
+                onClick={resetSimulation}
+                className="flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg font-medium text-xs md:text-sm transition-colors border border-slate-200 shadow-sm active:scale-95"
+              >
+                <RefreshCw size={16} />{" "}
+                <span className="hidden xs:inline">Đặt lại</span>
+              </button>
+            </header>
+
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 mx-auto w-full max-w-7xl flex-grow h-full">
+              {/* --- LEFT: VISUALIZATION --- */}
+              <div className="flex-1 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 flex flex-col relative min-h-[400px] lg:min-h-[550px] noselect overflow-hidden lab-bg">
+                <canvas
+                  ref={canvasRef}
+                  className="z-10 touch-none w-full h-full block"
+                  onMouseDown={handlePointerDown}
+                  onMouseMove={handlePointerMove}
+                  onTouchStart={handlePointerDown}
+                />
+
+                <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-white/95 backdrop-blur-md p-3 rounded-xl border border-slate-200 text-[10px] md:text-xs shadow-xl space-y-2 z-20 select-none max-w-[150px] md:max-w-none">
+                  <div className="font-bold text-slate-700 border-b border-slate-200 pb-1 mb-1">
+                    CHÚ GIẢI
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-yellow-400 border border-yellow-500"></div>{" "}
+                      <span>Hạt đánh dấu</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500 border border-blue-600"></div>{" "}
+                      <span>Hạt lạnh</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500 border border-red-600"></div>{" "}
+                      <span>Hạt nóng</span>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-slate-100">
+                    <label className="flex items-center gap-2 cursor-pointer text-slate-600 hover:text-blue-600">
+                      <input
+                        type="checkbox"
+                        checked={showTrace}
+                        onChange={(e) => setShowTrace(e.target.checked)}
+                        className="rounded text-blue-600 w-3 h-3"
+                      />
+                      <span>Hiện quỹ đạo</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* --- RIGHT: CONTROL PANEL --- */}
+              <div className="w-full lg:w-[380px] xl:w-[420px] flex flex-col gap-4">
+                {/* LED Display */}
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
+                  <div className="bg-slate-800 text-white p-3 rounded-xl shadow-lg relative overflow-hidden group">
+                    <div className="absolute right-2 top-2 opacity-20">
+                      <Gauge size={20} />
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">
+                      Áp suất (P)
+                    </div>
+                    <div className="text-xl md:text-2xl font-mono font-bold text-emerald-400">
+                      {pressure.toFixed(2)}{" "}
+                      <span className="text-xs text-slate-500 font-sans">
+                        atm
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-800 text-white p-3 rounded-xl shadow-lg relative overflow-hidden group">
+                    <div className="absolute right-2 top-2 opacity-20">
+                      <Thermometer size={20} />
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">
+                      Nhiệt độ (T)
+                    </div>
+                    <div className="text-xl md:text-2xl font-mono font-bold text-rose-400">
+                      {Math.round(temperature)}{" "}
+                      <span className="text-xs text-slate-500 font-sans">
+                        K
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-800 text-white p-3 rounded-xl shadow-lg relative overflow-hidden group">
+                    <div className="absolute right-2 top-2 opacity-20">
+                      <Box size={20} />
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">
+                      Thể tích (V)
+                    </div>
+                    <div className="text-xl md:text-2xl font-mono font-bold text-blue-400">
+                      {Math.round(volume)}{" "}
+                      <span className="text-xs text-slate-500 font-sans">
+                        L
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-800 text-white p-3 rounded-xl shadow-lg relative overflow-hidden group">
+                    <div className="absolute right-2 top-2 opacity-20">
+                      <Activity size={20} />
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">
+                      Số hạt (n)
+                    </div>
+                    <div className="text-xl md:text-2xl font-mono font-bold text-yellow-400">
+                      {particleCount}{" "}
+                      <span className="text-xs text-slate-500 font-sans">
+                        mol
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chart */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                  <div className="h-40 md:h-48 w-full">{renderDiagram()}</div>
+                </div>
+
+                {/* Controls */}
+                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-lg border border-slate-200 flex-grow flex flex-col gap-5">
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block tracking-wide">
+                      Quy trình nhiệt động
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        {
+                          id: "free",
+                          label: "Tự do",
+                          color:
+                            "bg-slate-100 hover:bg-slate-200 text-slate-700",
+                        },
+                        {
+                          id: "isothermal",
+                          label: "Đẳng Nhiệt",
+                          color:
+                            "bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200",
+                        },
+                        {
+                          id: "isochoric",
+                          label: "Đẳng Tích",
+                          color:
+                            "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200",
+                        },
+                        {
+                          id: "isobaric",
+                          label: "Đẳng Áp",
+                          color:
+                            "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200",
+                        },
+                      ].map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => {
+                            setMode(m.id);
+                            setHistory([]);
+                          }}
+                          className={`px-2 py-2.5 rounded-lg text-xs font-bold transition-all border ${
+                            mode === m.id
+                              ? "bg-slate-800 text-white shadow-md transform scale-105 border-transparent"
+                              : `border-transparent ${m.color}`
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-5">
+                    <div
+                      className={`transition-all duration-300 ${
+                        mode === "isothermal"
+                          ? "opacity-40 grayscale pointer-events-none"
+                          : ""
+                      }`}
+                    >
+                      <div className="flex justify-between mb-1.5">
+                        <label className="text-xs md:text-sm font-bold text-slate-700 flex items-center gap-2">
+                          <Thermometer size={16} className="text-rose-500" />{" "}
+                          Nhiệt độ
+                        </label>
+                        <span className="text-[10px] md:text-xs font-mono bg-slate-100 px-2 py-1 rounded">
+                          {Math.round(temperature)} K
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="100"
+                        max="1000"
+                        step="10"
+                        value={temperature}
+                        onChange={(e) =>
+                          handleTemperatureChange(Number(e.target.value))
+                        }
+                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                      />
+                    </div>
+
+                    <div
+                      className={`transition-all duration-300 ${
+                        mode === "isochoric"
+                          ? "opacity-40 grayscale pointer-events-none"
+                          : ""
+                      }`}
+                    >
+                      <div className="flex justify-between mb-1.5">
+                        <label className="text-xs md:text-sm font-bold text-slate-700 flex items-center gap-2">
+                          <MoveVertical size={16} className="text-blue-500" />{" "}
+                          Thể tích
+                        </label>
+                        <span className="text-[10px] md:text-xs font-mono bg-slate-100 px-2 py-1 rounded">
+                          {Math.round(volume)} L
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="100"
+                        max="1000"
+                        step="10"
+                        value={volume}
+                        onChange={(e) =>
+                          handleVolumeChange(Number(e.target.value))
+                        }
+                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between mb-1.5">
+                        <label className="text-xs md:text-sm font-bold text-slate-700 flex items-center gap-2">
+                          <Box size={16} className="text-slate-500" /> Số hạt
+                        </label>
+                        <span className="text-[10px] md:text-xs font-mono bg-slate-100 px-2 py-1 rounded">
+                          {particleCount}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="200"
+                        step="10"
+                        value={particleCount}
+                        onChange={(e) =>
+                          setParticleCount(Number(e.target.value))
+                        }
+                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-auto pt-2 pb-2 md:pb-0">
+                    <button
+                      onClick={() => setIsPlaying(!isPlaying)}
+                      className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-sm transition-all shadow-md active:scale-95 text-white ${
+                        isPlaying
+                          ? "bg-amber-500 hover:bg-amber-600"
+                          : "bg-emerald-600 hover:bg-emerald-700"
+                      }`}
+                    >
+                      {isPlaying ? (
+                        <>
+                          <Pause size={18} /> Tạm dừng
+                        </>
+                      ) : (
+                        <>
+                          <Play size={18} /> Tiếp tục
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<IdealGasSimulation />);
+    </script>
+  </body>
+</html>
