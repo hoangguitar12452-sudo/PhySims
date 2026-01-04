@@ -1,59 +1,121 @@
-/* intro */
+/* Reset cơ bản để demo đẹp hơn */
+body,
+html {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden; /* Ẩn thanh cuộn khi intro đang chạy */
+}
+
+/* --- PHẦN CSS ĐÃ TỐI ƯU --- */
+
 #intro {
   position: fixed;
-  inset: 0 0 0 0;
+  inset: 0 0 0 0; /* Full màn hình */
   background: linear-gradient(135deg, #00b4db 20%, #0083b0 80%);
   color: white;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding-top: 5%;
-  align-items: center;
+  justify-content: center; /* Căn giữa dọc */
+  align-items: center; /* Căn giữa ngang */
+  padding: 1rem; /* Thêm đệm để nội dung không sát mép màn hình nhỏ */
   z-index: 9999;
   text-align: center;
+
+  /* Animation ẩn intro (giữ nguyên của bạn) */
   animation: fadeOut 1s ease-in-out 3s forwards;
-  animation-delay: 4s;
+  animation-delay: 5s; /* Tăng delay lên một chút để kịp đọc demo */
 }
+
 #intro h1 {
-  font-size: 15em;
-  margin: 0.2em 0;
-  line-height: 0.5em;
+  /* TỐI ƯU 1: Sử dụng clamp thay vì 15em cố định.
+               - Nhỏ nhất: 4rem (trên điện thoại)
+               - Trung bình: 18% chiều rộng màn hình
+               - Lớn nhất: 15em (trên PC) */
+  font-size: clamp(4rem, 18vw, 15em);
+
+  margin: 0.1em 0;
+  font-weight: bold;
+  line-height: 1.1; /* Giãn dòng nhỏ lại để các chữ không bị tách xa quá */
+
+  /* Animation giữ nguyên */
   animation: slide-in-blurred-top 1.25s cubic-bezier(0.23, 1, 0.32, 1) both;
 }
+
 #intro .intro-box {
   display: inline-block;
   background-color: rgba(255, 255, 255, 0.2);
-  padding: 0.2em 0.5em;
-  border-radius: 15px;
+  padding: 0.5em 1.5em; /* Tăng padding ngang cho đẹp */
+  border-radius: 50px; /* Bo tròn nhiều hơn cho hiện đại */
+  backdrop-filter: blur(5px); /* Hiệu ứng mờ nền kính */
   box-shadow: 8px 8px 16px #d1d9e63d, -8px -8px 16px #ffffff1a;
+
+  /* Animation giữ nguyên */
   animation: slide-in-blurred-top 0.5s cubic-bezier(0.23, 1, 0.32, 1) both;
 }
+
 #intro h3 {
-  font-size: 2em;
-  margin: 0.1em 0;
-  animation: slide-in-blurred-top 2s cubic-bezier(0.23, 1, 0.32, 1) both;
+  /* Tự động co giãn nhẹ */
+  font-size: clamp(1.2rem, 4vw, 2em);
+  margin: 0;
+  font-weight: normal;
 }
+
 #intro p {
-  font-size: 1.4em;
+  font-size: clamp(1rem, 3vw, 1.4em);
+  margin-top: 1rem;
   opacity: 0;
   animation: fadeIn 2s ease forwards;
   animation-delay: 1s;
+  max-width: 80%; /* Giới hạn chiều rộng text để không bị dài quá trên PC */
 }
+
 #intro .members {
-  margin-top: 20em;
+  /* TỐI ƯU 2: Thay vì margin-top: 20em (quá lớn trên mobile), 
+               dùng vh (chiều cao màn hình) hoặc margin vừa phải */
+  margin-top: 10vh;
+
   line-height: 2em;
   opacity: 0;
   animation: fadeIn 2s ease forwards;
   animation-delay: 2.5s;
+
+  /* Flexbox để các thành viên tự xuống dòng trên màn hình nhỏ */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px; /* Khoảng cách giữa các tên */
+  width: 100%;
 }
+
 #intro .members span {
   display: inline-block;
-  margin: 0em 0.4em;
   background-color: rgba(255, 255, 255, 0.2);
   border-radius: 15px;
-  padding: 0.5em 0.5em;
+  padding: 0.5em 1em;
+  white-space: nowrap; /* Tên không bị ngắt dòng */
+  font-size: clamp(0.9rem, 2.5vw, 1.2rem); /* Chữ tên thành viên cũng co giãn */
 }
-/* end intro */
+
+/* --- MEDIA QUERIES (Xử lý riêng cho màn hình dọc/điện thoại) --- */
+@media (max-width: 768px) {
+  #intro {
+    padding-top: 15%; /* Đẩy nội dung lên trên một chút trên điện thoại */
+    justify-content: flex-start; /* Căn từ trên xuống thay vì giữa */
+  }
+
+  #intro h1 {
+    /* Trên điện thoại có thể cần margin lớn hơn chút để tách khỏi intro-box */
+    margin-bottom: 0.5em;
+  }
+
+  #intro .members {
+    margin-top: auto; /* Đẩy phần thành viên xuống sát đáy */
+    margin-bottom: 10vh; /* Cách đáy 10% màn hình */
+  }
+}
+
+/* Animation giữ nguyên của bạn */
 @keyframes fadeOut {
   to {
     opacity: 0;
