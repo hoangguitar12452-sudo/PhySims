@@ -14,6 +14,7 @@
   /* Animation ẩn intro (giữ nguyên của bạn) */
   animation: fadeOut 1s ease-in-out 3s forwards;
   animation-delay: 5s; /* Tăng delay lên một chút để kịp đọc demo */
+  pointer-events: none;  /* cho phép ấn xuyên intro */
 }
 
 #intro h1 {
